@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "excluded_accounts": [],
+  "accounts": {
+    "old_username": {
+      "email": "new-user@example.com"
+    }
+  }
+}

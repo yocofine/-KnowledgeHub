@@ -1,0 +1,161 @@
+# Independent staging stack. Never reuse the legacy MySQL/Milvus volumes.
+name: edu-weknora
+services:
+  frontend:
+    image: ${WEKNORA_UI_IMAGE:-wechatopenai/weknora-ui:v0.8.2}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT:-18081}:80"
+    environment:
+      APP_HOST: app
+      APP_PORT: "8080"
+      APP_SCHEME: http
+      DEFAULT_LOCALE: zh-CN
+      MAX_FILE_SIZE_MB: "100"
+    depends_on:
+      app:
+        condition: service_healthy
+    mem_limit: 128m
+    cpus: 0.25
+    restart: unless-stopped
+    logging: &logging
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  app:
+    image: ${WEKNORA_APP_IMAGE:-wechatopenai/weknora-app:v0.8.2}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-18080}:8080"
+    environment:
+      GIN_MODE: release
+      LOG_LEVEL: info
+      TZ: Asia/Shanghai
+      WEKNORA_LANGUAGE: zh-CN
+      AUTO_MIGRATE: "true"
+      DB_DRIVER: postgres
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-weknora}
+      DB_NAME: ${DB_NAME:-weknora}
+      DB_PASSWORD: ${DB_PASSWORD:?Run python3 edu/setup.py init first}
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Redis password required}
+      REDIS_DB: "0"
+      RETRIEVE_DRIVER: postgres
+      STORAGE_TYPE: local
+      STORAGE_ALLOW_LIST: local
+      LOCAL_STORAGE_BASE_DIR: /data/files
+      DOCREADER_ADDR: docreader:50051
+      DOCREADER_TRANSPORT: grpc
+      SYSTEM_AES_KEY: ${SYSTEM_AES_KEY:?32-byte AES key required}
+      SYSTEM_SIGNING_KEY: ${SYSTEM_SIGNING_KEY:?Signing key required}
+      JWT_SECRET: ${JWT_SECRET:?JWT key required}
+      DISABLE_REGISTRATION: ${DISABLE_REGISTRATION:-false}
+      WEKNORA_AUTH_COMPLEX_PASSWORD_ENABLED: "true"
+      WEKNORA_AUTH_DEFAULT_TENANT_MODE: create_personal
+      WEKNORA_TENANT_ENABLE_RBAC: "true"
+      WEKNORA_TENANT_ENABLE_CROSS_TENANT_ACCESS: "false"
+      WEKNORA_TENANT_SELF_SERVICE_CREATION_ENABLED: "true"
+      WEKNORA_TENANT_AUTO_CREATE_API_KEY: "false"
+      WEKNORA_SANDBOX_DOCKER_ENABLED: "false"
+      OLLAMA_OPTIONAL: "true"
+      CONCURRENCY_POOL_SIZE: "1"
+      WEKNORA_ASYNQ_CORE_CONCURRENCY: "1"
+      WEKNORA_ASYNQ_POSTPROCESS_CONCURRENCY: "1"
+      WEKNORA_ASYNQ_ENRICHMENT_CONCURRENCY: "1"
+      WEKNORA_ASYNQ_MAINTENANCE_CONCURRENCY: "1"
+      WEKNORA_ASYNQ_SHARED_CONCURRENCY: "1"
+      WEKNORA_MODEL_MAX_CONCURRENCY: "2"
+      BATCH_EMBED_SIZE: "8"
+      WEKNORA_DOCUMENT_PROCESS_TIMEOUT: 1h
+      WEKNORA_DOCREADER_CALL_TIMEOUT: 30m
+      MAX_FILE_SIZE_MB: "100"
+      APP_EXTERNAL_URL: ${APP_EXTERNAL_URL:-}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-}
+    volumes:
+      - data-files:/data/files
+      - docreader-tmp:/tmp/docreader:ro
+      - ../config/config.yaml:/app/config/config.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      docreader:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, curl, -f, "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    mem_limit: 1536m
+    cpus: 2
+    restart: unless-stopped
+    logging: *logging
+
+  postgres:
+    image: ${WEKNORA_POSTGRES_IMAGE:-paradedb/paradedb:v0.22.6-pg17}
+    environment:
+      POSTGRES_USER: ${DB_USER:-weknora}
+      POSTGRES_DB: ${DB_NAME:-weknora}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Database password required}
+    command: [postgres, -c, shared_buffers=256MB, -c, max_connections=50, -c, work_mem=4MB]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 1536m
+    cpus: 1
+    restart: unless-stopped
+    logging: *logging
+
+  redis:
+    image: ${WEKNORA_REDIS_IMAGE:-redis:7.0-alpine}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Redis password required}
+    command: [redis-server, --appendonly, "yes", --requirepass, "${REDIS_PASSWORD}", --maxmemory, 192mb, --maxmemory-policy, noeviction]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 256m
+    cpus: 0.5
+    restart: unless-stopped
+    logging: *logging
+
+  docreader:
+    image: ${WEKNORA_DOCREADER_IMAGE:-wechatopenai/weknora-docreader:v0.8.2}
+    environment:
+      TZ: Asia/Shanghai
+      LOG_LEVEL: info
+      DOCREADER_IMAGE_OUTPUT_DIR: /tmp/docreader
+      MAX_FILE_SIZE_MB: "100"
+      DOCREADER_GRPC_MAX_FILE_SIZE_MB: "100"
+      DOCREADER_GRPC_MAX_WORKERS: "1"
+      DOCREADER_PDF_RENDER_MAX_WORKERS: "1"
+      DOCREADER_PDF_RENDER_PARALLELISM: "1"
+      DOCREADER_MARKITDOWN_MAX_WORKERS: "1"
+    volumes:
+      - docreader-tmp:/tmp/docreader
+    healthcheck:
+      test: [CMD, grpc_health_probe, "-addr=localhost:50051"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    mem_limit: 768m
+    cpus: 1
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  data-files:
+  docreader-tmp:
+  postgres-data:
+  redis-data:
