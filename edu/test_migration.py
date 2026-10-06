@@ -104,6 +104,11 @@ class ExportTests(unittest.TestCase):
                 with self.assertRaises(sqlite3.OperationalError):
                     connection.execute("CREATE TABLE forbidden (id)")
 
+    def test_mysql_unknown_connection_options_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "charset=utf8mb4"):
+            with migration.source_connection("mysql+pymysql://readonly:dummy@localhost/legacy?unknown=1"):
+                self.fail("Unknown options must not reach the database")
+
     def test_duplicate_emails_rejected(self):
         with self.assertRaises(ValueError):
             migration.validate_map({"schema_version": 1, "accounts": {

@@ -15,7 +15,7 @@ from pathlib import Path
 import re
 import sqlite3
 from urllib.error import HTTPError, URLError
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 HERE = Path(__file__).resolve().parent
@@ -70,12 +70,14 @@ def source_connection(url: str):
         connection.execute("BEGIN")
         kind = "sqlite"
     elif parsed.scheme in {"mysql", "mysql+pymysql"}:
+        options = parse_qs(parsed.query, keep_blank_values=True)
+        if (not parsed.hostname or not parsed.path.strip("/") or parsed.fragment
+                or (options and options != {"charset": ["utf8mb4"]})):
+            raise ValueError("源数据库 URL 格式无效；只允许可选的 charset=utf8mb4")
         try:
             import pymysql
         except ImportError as error:
             raise ValueError("请先安装 edu/requirements.txt（只读导出需要 PyMySQL）") from error
-        if not parsed.hostname or not parsed.path.strip("/") or parsed.query or parsed.fragment:
-            raise ValueError("源数据库 URL 格式无效；使用 mysql+pymysql://用户:密码@地址:端口/库名")
         connection = pymysql.connect(
             host=parsed.hostname, port=parsed.port or 3306,
             user=unquote(parsed.username or ""), password=unquote(parsed.password or ""),
