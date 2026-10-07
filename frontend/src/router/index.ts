@@ -8,6 +8,7 @@ import { MessagePlugin } from 'tdesign-vue-next'
 import i18n from '@/i18n'
 import { normalizeSettingsSection } from '@/config/settingsRoute'
 import { isToolboxSection, toolboxLocation } from '@/config/toolbox'
+import { eduMe } from '@/api/edu'
 
 /** Lite /桌面 WebView 硬刷新时可能只打开 `/`，用 session 记住上次页面以便恢复 */
 const LITE_LAST_PATH_KEY = 'weknora_lite_last_path'
@@ -101,6 +102,26 @@ const router = createRouter({
       component: () => import("../views/platform/index.vue"),
       meta: { requiresInit: true, requiresAuth: true },
       children: [
+        {
+          path: 'edu-faq', name: 'eduFAQ',
+          component: () => import('../views/edu/EduFAQ.vue'),
+          meta: { requiresInit: true, requiresAuth: true },
+        },
+        {
+          path: 'edu-scripts', name: 'eduScripts',
+          component: () => import('../views/edu/EduLibrary.vue'),
+          meta: { requiresInit: true, requiresAuth: true },
+        },
+        {
+          path: 'edu-rules', name: 'eduRules',
+          component: () => import('../views/edu/EduLibrary.vue'),
+          meta: { requiresInit: true, requiresAuth: true },
+        },
+        {
+          path: 'edu-analysis', name: 'eduAnalysis',
+          component: () => import('../views/edu/EduLibrary.vue'),
+          meta: { requiresInit: true, requiresAuth: true },
+        },
         {
           path: "tenant",
           redirect: "/platform/settings"
@@ -440,6 +461,19 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
+  // Rules are managed by the edu outbox. Keep one editing entry instead of
+  // letting the native manual editor and the rule library diverge.
+  if (to.name === 'knowledgeBaseDetail') {
+    try {
+      const response = await eduMe()
+      if (response.data.rules_kb_id === to.params.kbId) {
+        next({ name: 'eduRules', replace: true })
+        return
+      }
+    } catch {
+      // Regular native knowledge bases stay usable if the extension is down.
+    }
+  }
   next()
 })
 

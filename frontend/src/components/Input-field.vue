@@ -15,6 +15,7 @@ import { listMCPServices, type MCPService } from '@/api/mcp-service';
 import { stopSession } from '@/api/chat';
 import type { SteerQueueItem } from '@/api/chat/steer';
 import { chatSubmitShortcut } from '@/utils/chatSubmitShortcut';
+import { recordEduQuestion } from '@/api/edu';
 import { useOrganizationStore } from '@/stores/organization';
 import KnowledgeBaseSelector from './KnowledgeBaseSelector.vue';
 import MentionSelector from './MentionSelector.vue';
@@ -2133,6 +2134,8 @@ const createSession = async (
   const attachmentFiles = uploadedAttachments.value;
 
   emit('send-msg', val, selectedModelId.value, mentionedItems, imageFiles, attachmentFiles, options);
+  // Private, per-account question statistics; never block or log a user's text.
+  void recordEduQuestion(val).catch(() => {});
 
   // Clean up image previews
   uploadedImages.value.forEach(img => URL.revokeObjectURL(img.preview));

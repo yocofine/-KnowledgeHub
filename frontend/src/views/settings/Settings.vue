@@ -145,6 +145,11 @@
 
         <!-- 系统管理员可见的全局运行时设置 -->
         <div v-if="currentSection === 'system-global'" class="section">
+          <div style="margin-bottom:24px">
+            <h3>钉钉规则机器人</h3>
+            <p>管理规则通知的群聊 Webhook 与加签密钥。应用机器人接收消息仍在原生 IM 平台设置。</p>
+            <t-button variant="outline" @click="modalShell.requestClose(); router.push({ path: '/platform/edu-rules', query: { robot: '1' } })">配置规则推送机器人</t-button>
+          </div>
           <SystemSettings />
         </div>
 

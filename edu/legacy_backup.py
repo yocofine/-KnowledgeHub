@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 import sys
 
+# A script launched from /tmp has /tmp (not the API workdir) on sys.path.
+sys.path.insert(0, "/app")
 from backend.app.config import get_settings
 import migration
 

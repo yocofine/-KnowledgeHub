@@ -54,6 +54,10 @@ test('a new batch keeps an earlier batch that still has failures to retry', asyn
   enqueue('next', 2)
   assert.deepEqual(tasks.items.map(item => item.name), ['broken', 'next'])
   tasks.retryItem(tasks.items[0].id)
+  // Serial transfer: retry waits behind the already-active next upload.
+  assert.equal(calls.at(-1)!.payload.file.name, 'next')
+  calls.at(-1)!.resolve({ success: true, data: { id: 'k2', parse_status: 'completed' } })
+  await flush()
   assert.equal(calls.at(-1)!.payload.file.name, 'broken')
 })
 

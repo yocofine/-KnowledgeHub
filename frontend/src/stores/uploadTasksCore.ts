@@ -17,10 +17,10 @@ import { summarizeItems, type UploadItem } from './uploadTasksState'
  */
 
 /**
- * Parallel transfers. The server hashes and stores every file before it
- * answers, so a small number keeps the pipe full without piling work on it.
+ * Serial transfers for the bounded-resource edu deployment.
  */
-const CONCURRENCY = 3
+// The 4-core/8GB edu deployment keeps transfer and ingestion pressure bounded.
+const CONCURRENCY = 1
 const POLL_INTERVAL_MS = 3000
 /** Keeps the ids=… query string of one status request well under URL length limits. */
 const POLL_CHUNK_SIZE = 40

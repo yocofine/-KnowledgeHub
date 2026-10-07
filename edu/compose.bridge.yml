@@ -1,0 +1,46 @@
+services:
+  edu-bridge:
+    # Reuse the server's existing Python API runtime; do NOT run the old API app.
+    # No local model or old database is loaded. A clean image may be built later.
+    image: ${EDU_BRIDGE_IMAGE:-edu-rag-platform-api:latest}
+    pull_policy: never
+    working_dir: /work
+    ports:
+      - "127.0.0.1:18082:8090"
+    command: [python, -m, uvicorn, edu_bridge.main:app, --host, 0.0.0.0, --port, "8090", --workers, "1", --no-access-log]
+    env_file:
+      - bridge/.env
+    environment:
+      PYTHONPATH: /work
+      WEKNORA_API_URL: http://app:8080
+      EDU_STORE_PATH: /data/edu.sqlite
+    volumes:
+      - ./bridge:/work/edu_bridge:ro
+      - edu-data:/data
+    mem_limit: 384m
+    cpus: 0.5
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8090/health',timeout=5)"]
+      interval: 15s
+      timeout: 6s
+      retries: 5
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  frontend:
+    volumes:
+      - ../frontend/dist:/usr/share/nginx/html:ro
+      # Native entrypoint writes this one public runtime config file.
+      - ./runtime-config.js:/usr/share/nginx/html/config.js
+      - ../frontend/nginx.conf:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      edu-bridge:
+        condition: service_healthy
+volumes:
+  edu-data:
+    external: true
+    name: edu-weknora_edu-data

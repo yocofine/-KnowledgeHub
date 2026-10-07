@@ -1,0 +1,13 @@
+# Optional override for this server's reachable registry. Use with compose.yml.
+# All application/DB release manifests were verified for amd64 on 2026-10-06.
+services:
+  frontend:
+    image: m.daocloud.io/docker.io/wechatopenai/weknora-ui:v0.8.2
+  app:
+    image: m.daocloud.io/docker.io/wechatopenai/weknora-app:v0.8.2
+  docreader:
+    image: m.daocloud.io/docker.io/wechatopenai/weknora-docreader:v0.8.2
+  postgres:
+    image: m.daocloud.io/docker.io/paradedb/paradedb:v0.22.6-pg17
+  redis:
+    image: m.daocloud.io/docker.io/library/redis:7.0-alpine
