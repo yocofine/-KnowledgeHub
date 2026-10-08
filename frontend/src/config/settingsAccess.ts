@@ -22,7 +22,7 @@ export const SETTINGS_SECTION_MIN_ROLE: Record<string, SettingsRoleKey> = {
   // that config boots. Same Admin+ bar as the sandbox editor itself.
   skills: 'admin',
   mcp: 'admin',
-  system: 'viewer',
+  system: 'owner',
   userprofile: 'viewer',
   browserconnection: 'viewer',
   tenant: 'viewer',
@@ -34,12 +34,22 @@ export const SETTINGS_SECTION_MIN_ROLE: Record<string, SettingsRoleKey> = {
   envvars: 'viewer',
 }
 
+/** These panels are reserved for a real owner of the active workspace.
+ * A system administrator visiting another workspace must not bypass this UI policy.
+ */
+export const OWNER_ONLY_SETTINGS_SECTIONS = new Set([
+  'integration-im',
+  'integration-embed',
+  'integration-mcpserver',
+  'system',
+])
+
 /**
  * A management-labelled avatar shortcut has a stricter threshold than the
  * corresponding read-only Settings page.
  */
 export const SETTINGS_MANAGEMENT_SHORTCUT_MIN_ROLE = {
-  members: 'owner',
+  members: 'admin',
   models: 'admin',
 } as const satisfies Record<string, SettingsRoleKey>
 

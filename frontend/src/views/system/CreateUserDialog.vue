@@ -1,5 +1,5 @@
 <!--
-  CreateUserDialog: SystemAdmin "Create user" in-place popup (Access row).
+  CreateUserDialog: workspace Admin/Owner account provisioning from member management.
 
   Anchors to the row action via the default slot, matching TenantMembers
   invite and UserProfile password popups. Form (username + email +
@@ -29,7 +29,7 @@
         <p class="system-admin-action-popup-hint">
           {{ createUserSuccess
             ? t('system.globalSettings.createUser.generated.successBody')
-            : t('system.globalSettings.createUser.warning') }}
+            : '创建后直接加入当前空间，默认权限为「编辑」。登录账号为邮箱，无需再发送邀请。' }}
         </p>
         <template v-if="createUserSuccess">
           <div class="create-user-reveal">
@@ -112,10 +112,12 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { MessagePlugin } from 'tdesign-vue-next'
 import type { FormInstanceFunctions, FormRule } from 'tdesign-vue-next'
 import { useI18n } from 'vue-i18n'
-import { createSystemUser, type CreateSystemUserRequest } from '@/api/system'
+import type { CreateSystemUserRequest } from '@/api/system'
+import { createMemberAccount } from '@/api/edu'
 import { getAuthConfig } from '@/api/auth'
 import { copyWithToast } from '@/utils/clipboard'
 import { newPasswordRules } from '@/utils/passwordPolicy'
+import { useAuthStore } from '@/stores/auth'
 import {
   applyCreateUserResponse,
   captureLockedEscape,
@@ -125,13 +127,15 @@ import {
   type CreateUserReveal,
 } from './createUserDialogState'
 
-const props = defineProps<{ visible: boolean }>()
+const props = defineProps<{ visible: boolean; tenantId: number }>()
 const emit = defineEmits<{
   'update:visible': [boolean]
   announced: [string]
+  created: [tenantId: number]
 }>()
 
 const { t } = useI18n()
+const authStore = useAuthStore()
 
 const submitting = ref(false)
 const dismissing = ref(false)
@@ -139,7 +143,7 @@ const formRef = ref<FormInstanceFunctions>()
 const form = reactive({
   username: '',
   email: '',
-  autoGenerate: true,
+  autoGenerate: false,
   newPassword: '',
   confirmPassword: '',
 })
@@ -210,7 +214,7 @@ onUnmounted(() => {
 function resetFormFields() {
   form.username = ''
   form.email = ''
-  form.autoGenerate = true
+  form.autoGenerate = false
   form.newPassword = ''
   form.confirmPassword = ''
   formRef.value?.clearValidate?.()
@@ -228,21 +232,26 @@ function announce(msg: string, kind: 'success' | 'error' = 'success') {
 async function submit() {
   if (!shouldAcceptCreateUserSubmit(submitting.value, createUserSuccess.value !== null)) return
   submitting.value = true
+  const owner = authStore.user?.id
   try {
     const valid = await formRef.value?.validate?.()
     if (valid !== true) return
 
     const payload: CreateSystemUserRequest = {
       username: form.username.trim(),
-      email: form.email.trim(),
+      email: form.email.trim().toLowerCase(),
     }
     if (!form.autoGenerate) {
       payload.password = form.newPassword
     }
-    const response = await createSystemUser(payload)
+    const tenantId = props.tenantId
+    if (!Number.isSafeInteger(tenantId) || tenantId <= 0) throw new Error('请选择当前空间')
+    const response = await createMemberAccount(tenantId, payload)
+    if (owner !== authStore.user?.id) return
+    emit('created', tenantId)
     const view = resolveCreateUserView(
       response,
-      { username: payload.username, email: payload.email },
+      { username: response.user.username, email: response.user.email },
       form.autoGenerate,
     )
     const next = applyCreateUserResponse(createUserSuccess.value, view)

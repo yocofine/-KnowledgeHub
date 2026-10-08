@@ -1,0 +1,75 @@
+/* KnowledgeHub login tokens; isolated names keep the main app's theme unchanged. */
+/* Screenshot-led app skin. Hallmark: reference system, preserve existing component ownership. */
+:root {
+  --kh-ui-paper: oklch(99.3% 0.003 25);
+  --kh-ui-surface: oklch(99.8% 0.001 25);
+  --kh-ui-ink: oklch(21% 0.026 260);
+  --kh-ui-muted: oklch(49% 0.023 260);
+  --kh-ui-rule: oklch(92% 0.006 25);
+  --kh-ui-accent: oklch(57% 0.22 25);
+  --kh-ui-accent-hover: oklch(51% 0.21 25);
+  --kh-ui-soft: oklch(97% 0.013 25);
+  --kh-ui-accent-ink: oklch(99.8% 0.001 25);
+  --kh-ui-shadow: 0 12px 40px oklch(49% 0.07 25 / .055);
+  --kh-ui-radius: 18px;
+  --kh-ui-control-radius: 10px;
+  --kh-ui-space: clamp(20px, 3vw, 44px);
+  --kh-ui-font: var(--app-font-family);
+  --kh-ui-focus: oklch(43% 0.14 25);
+}
+html[theme-mode="dark"] {
+  --kh-ui-paper: oklch(17% 0.014 25);
+  --kh-ui-surface: oklch(22% 0.016 25);
+  --kh-ui-ink: oklch(95% 0.006 25);
+  --kh-ui-muted: oklch(77% 0.013 25);
+  --kh-ui-rule: oklch(37% 0.02 25);
+  --kh-ui-accent: oklch(78% 0.11 25);
+  --kh-ui-accent-hover: oklch(84% 0.11 25);
+  --kh-ui-soft: oklch(28% 0.035 25);
+  --kh-ui-accent-ink: oklch(20% 0.025 25);
+  --kh-ui-focus: oklch(85% 0.11 25);
+  --kh-ui-shadow: none;
+}
+:root {
+  --kh-color-paper: oklch(98% 0.006 25);
+  --kh-color-surface: oklch(99.5% 0.002 25);
+  --kh-color-soft: oklch(95% 0.014 25);
+  --kh-color-ink: oklch(25% 0.025 25);
+  --kh-color-muted: oklch(47% 0.02 25);
+  --kh-color-rule: oklch(85% 0.015 25);
+  --kh-color-input-rule: oklch(63% 0.014 25);
+  --kh-color-accent: oklch(43% 0.155 25);
+  --kh-color-accent-hover: oklch(37% 0.14 25);
+  --kh-color-accent-ink: oklch(99% 0.004 25);
+  --kh-color-focus: oklch(43% 0.155 25);
+  --kh-color-error: oklch(47% 0.18 25);
+  --kh-font-body: var(--app-font-family);
+  --kh-font-display: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  --kh-space-xs: 8px;
+  --kh-space-sm: 12px;
+  --kh-space-md: 16px;
+  --kh-space-lg: 24px;
+  --kh-space-xl: 40px;
+  --kh-space-2xl: 64px;
+  --kh-text-sm: 14px;
+  --kh-text-base: 16px;
+  --kh-text-title: 28px;
+  --kh-text-display: 36px;
+  --kh-radius: 8px;
+  --kh-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --kh-dur-micro: 120ms;
+}
+html[theme-mode="dark"] {
+  --kh-color-paper: oklch(17% 0.014 25);
+  --kh-color-surface: oklch(21% 0.016 25);
+  --kh-color-soft: oklch(25% 0.023 25);
+  --kh-color-ink: oklch(95% 0.006 25);
+  --kh-color-muted: oklch(77% 0.013 25);
+  --kh-color-rule: oklch(38% 0.02 25);
+  --kh-color-input-rule: oklch(59% 0.02 25);
+  --kh-color-accent: oklch(78% 0.11 25);
+  --kh-color-accent-hover: oklch(85% 0.14 25);
+  --kh-color-accent-ink: oklch(20% 0.025 25);
+  --kh-color-focus: oklch(78% 0.11 25);
+  --kh-color-error: oklch(79% 0.1 25);
+}

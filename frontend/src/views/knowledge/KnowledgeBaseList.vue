@@ -1,5 +1,5 @@
 <template>
-  <div class="kb-list-container">
+  <div class="kb-list-container" :class="{ 'kb-list-container--sidebar': props.sidebar }">
     <div class="kb-list-content">
       <div class="header" style="--wails-draggable: drag">
         <div class="header-title" style="--wails-draggable: drag">
@@ -157,7 +157,7 @@
               'highlight-flash': highlightedKbId !== null && highlightedKbId === kb.id
             }"
               :ref="el => { if (highlightedKbId !== null && highlightedKbId === kb.id && el) highlightedCardRef = el as HTMLElement }"
-              role="link" tabindex="0" @keydown.enter.self.prevent="handleCardClick(kb)" @keydown.space.self.prevent="handleCardClick(kb)" @click="handleCardClick(kb)">
+              role="link" tabindex="0" @keydown.enter.self.prevent="handleCardClick(kb)" @keydown.space.self.prevent="handleCardClick(kb)" @click="handleCardClick(kb)" :data-active="props.sidebar && route.params.kbId === kb.id">
               <!-- 行尾收藏操作，与更多菜单分开。 -->
               <button type="button" class="kb-favorite-star" :class="{ 'is-favorited': isKbFavorited(kb.id) }"
                 :aria-label="$t('listSpaceSidebar.favorites')" :aria-pressed="isKbFavorited(kb.id)" @click.stop="toggleFavoriteKb(kb.id, $event)">
@@ -262,7 +262,7 @@
             <div v-else v-show="!isKbSectionCollapsed(kbSectionOf(kb))" class="kb-card shared-kb-card" :class="{
               'kb-type-document': (kb.type || 'document') === 'document',
               'kb-type-faq': kb.type === 'faq'
-            }" role="link" tabindex="0" @keydown.enter.self.prevent="handleSharedKbClickFromAll(kb)" @keydown.space.self.prevent="handleSharedKbClickFromAll(kb)" @click="handleSharedKbClickFromAll(kb)">
+            }" role="link" tabindex="0" @keydown.enter.self.prevent="handleSharedKbClickFromAll(kb)" @keydown.space.self.prevent="handleSharedKbClickFromAll(kb)" @click="handleSharedKbClickFromAll(kb)" :data-active="props.sidebar && route.params.kbId === kb.id">
               <button type="button" class="kb-favorite-star" :class="{ 'is-favorited': isKbFavorited(kb.id) }"
                 :aria-label="$t('listSpaceSidebar.favorites')" :aria-pressed="isKbFavorited(kb.id)" @click.stop="toggleFavoriteKb(kb.id, $event)">
                 <t-icon :name="isKbFavorited(kb.id) ? 'star-filled' : 'star'" size="14px" />
@@ -391,7 +391,7 @@
               'highlight-flash': highlightedKbId !== null && highlightedKbId === kb.id
             }"
               :ref="el => { if (highlightedKbId !== null && highlightedKbId === kb.id && el) highlightedCardRef = el as HTMLElement }"
-              role="link" tabindex="0" @keydown.enter.self.prevent="handleCardClick(kb)" @keydown.space.self.prevent="handleCardClick(kb)" @click="handleCardClick(kb)">
+              role="link" tabindex="0" @keydown.enter.self.prevent="handleCardClick(kb)" @keydown.space.self.prevent="handleCardClick(kb)" @click="handleCardClick(kb)" :data-active="props.sidebar && route.params.kbId === kb.id">
               <button type="button" class="kb-favorite-star" :class="{ 'is-favorited': isKbFavorited(kb.id) }"
                 :aria-label="$t('listSpaceSidebar.favorites')" :aria-pressed="isKbFavorited(kb.id)" @click.stop="toggleFavoriteKb(kb.id, $event)">
                 <t-icon :name="isKbFavorited(kb.id) ? 'star-filled' : 'star'" size="14px" />
@@ -546,7 +546,7 @@
             <div v-show="!isSpaceKbCollapsed(shared)" class="kb-card shared-kb-card" :class="{
               'kb-type-document': (shared.knowledge_base.type || 'document') === 'document',
               'kb-type-faq': shared.knowledge_base.type === 'faq'
-            }" role="link" tabindex="0" @keydown.enter.self.prevent="handleSharedKbClick(shared)" @keydown.space.self.prevent="handleSharedKbClick(shared)" @click="handleSharedKbClick(shared)">
+            }" role="link" tabindex="0" @keydown.enter.self.prevent="handleSharedKbClick(shared)" @keydown.space.self.prevent="handleSharedKbClick(shared)" @click="handleSharedKbClick(shared)" :data-active="props.sidebar && route.params.kbId === shared.knowledge_base.id">
               <!-- 卡片头部 -->
               <div class="card-header">
                 <span class="card-title" :title="shared.knowledge_base.name">
@@ -744,6 +744,8 @@ import {
 } from '@/utils/resourceSorting'
 
 const router = useRouter()
+const props = withDefaults(defineProps<{ sidebar?: boolean }>(), { sidebar: false })
+const emit = defineEmits<{ 'knowledge-base-updated': [id: string] }>()
 const route = useRoute()
 const uiStore = useUIStore()
 const authStore = useAuthStore()
@@ -1498,6 +1500,7 @@ const handleCreateKnowledgeBase = () => {
 
 // 知识库编辑器成功回调（创建或编辑成功）
 const handleKBEditorSuccess = (kbId: string) => {
+  emit('knowledge-base-updated', kbId)
   console.log('[KnowledgeBaseList] knowledge operation success:', kbId)
   const shouldOpenDetailForUploadGuide = !isContextualGuideDone('kbDetail')
   // 列表页编辑同样要让单 KB 详情缓存失效，否则侧栏 / 详情页 60s 内仍显示旧信息
@@ -1561,6 +1564,30 @@ watch(keyword, () => { collapsedKbSections.value = new Set() })
   min-height: 0;
   height: 100%;
   display: flex;
+}
+
+/* Compact navigation mode reuses the same data, actions and permission checks. */
+.kb-list-container--sidebar {
+  .kb-list-content { padding: 16px 12px; min-width: 0; width: 100%; box-sizing: border-box; }
+  .header { padding-right: 0; margin-bottom: 12px; }
+  .header-title { width: 100%; }
+  .title-row { flex-wrap: wrap; justify-content: space-between; }
+  .header-actions { width: 100%; justify-content: space-between; flex-wrap: wrap; }
+  .header-action-btn { width: auto; padding: 0 8px; }
+  .header h2 { font-size: 18px; line-height: 28px; }
+  .header-subtitle { display: none; }
+  .kb-card-wrap { display: flex; flex-direction: column; gap: 8px; }
+  .kb-card { width: 100%; max-width: none; min-width: 0; min-height: 0; padding: 12px; box-sizing: border-box; }
+  .kb-card[data-active="true"] { border-color: var(--td-brand-color); background: var(--td-brand-color-light); }
+  .card-content { display: none; }
+  .card-header { padding-right: 36px; }
+  .card-title { min-width: 0; font-size: 14px; }
+  .card-bottom { margin-top: 8px; padding-top: 8px; }
+  .kb-section-header { padding: 8px 0; font-size: 12px; }
+  :deep(.resource-toolbar) { flex-direction: column; align-items: stretch; gap: 8px; }
+  :deep(.scope-filters) { min-width: 0; flex-direction: column; align-items: stretch; gap: 8px; }
+  :deep(.category-tabs) { display: flex; flex-wrap: wrap; max-width: 100%; }
+  :deep(.search-input) { width: 100%; max-width: none; }
 }
 
 .kb-list-content { .resource-list-content(); }

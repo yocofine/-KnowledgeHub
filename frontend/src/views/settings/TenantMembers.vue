@@ -52,15 +52,7 @@
       </div>
       <p class="section-description">
         {{ $t('tenantMember.sectionDescription') }}
-        <a
-          class="doc-link"
-          href="https://github.com/Tencent/WeKnora/blob/main/website-docs/03-features/01-tenant-auth.md"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {{ $t('tenantMember.learnRbacGuide') }}
-          <t-icon name="link" class="link-icon" />
-        </a>
+        
       </p>
     </div>
 
@@ -192,6 +184,13 @@
             <span class="members-list-count-badge">{{ membersTotal }}</span>
           </div>
           <div class="members-list-actions">
+            <CreateUserDialog v-if="canCreateMembers" v-model:visible="createUserVisible"
+              :tenant-id="activeTenantId" @created="onMemberCreated">
+              <t-button theme="primary" variant="outline">
+                <template #icon><t-icon name="user-add" /></template>
+                创建成员
+              </t-button>
+            </CreateUserDialog>
             <div class="members-list-search">
               <t-input v-model="searchQuery" size="small" :placeholder="$t('tenantMember.searchPlaceholder')" clearable>
                 <template #prefix-icon><t-icon name="search" /></template>
@@ -517,6 +516,7 @@ import { computed, nextTick, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { MessagePlugin } from 'tdesign-vue-next'
 import SettingDrawer from '@/components/settings/SettingDrawer.vue'
+import CreateUserDialog from '@/views/system/CreateUserDialog.vue'
 import { copyWithToast } from '@/utils/clipboard'
 import { useAuthStore } from '@/stores/auth'
 import { AUDIT_ACTION_I18N_ROOTS } from '@/i18n/auditActionRegistry'
@@ -651,6 +651,11 @@ const currentRole = computed<TenantRole | ''>(() => (authStore.currentTenantRole
 const canManage = computed(
   () => currentRole.value === 'owner' || authStore.canAccessAllTenants === true,
 )
+const createUserVisible = ref(false)
+const canCreateMembers = computed(() => currentRole.value === 'admin' || currentRole.value === 'owner' || authStore.canAccessAllTenants === true || authStore.isSystemAdmin)
+function onMemberCreated(tenantId: number) {
+  if (tenantId === activeTenantId.value) void loadMembers()
+}
 // Admin+ (and cross-tenant superusers) can view the audit log. Mirrors
 // the server's g.Admin() guard on /tenants/:id/audit-log so we don't
 // render a tab that would just 403.
@@ -689,6 +694,7 @@ type RolePerm = { key: string; has: boolean }
 const roleMatrixOrder: TenantRole[] = ['owner', 'admin', 'contributor', 'viewer']
 const roleMatrix: Record<TenantRole, RolePerm[]> = {
   owner: [
+    { key: 'createMembers', has: true },
     { key: 'manageMembers', has: true },
     { key: 'manageTenantConfig', has: true },
     { key: 'manageInfra', has: true },
@@ -696,6 +702,7 @@ const roleMatrix: Record<TenantRole, RolePerm[]> = {
     { key: 'readAll', has: true },
   ],
   admin: [
+    { key: 'createMembers', has: true },
     { key: 'manageMembers', has: false },
     { key: 'manageTenantConfig', has: false },
     { key: 'manageInfra', has: true },
@@ -703,6 +710,7 @@ const roleMatrix: Record<TenantRole, RolePerm[]> = {
     { key: 'readAll', has: true },
   ],
   contributor: [
+    { key: 'createMembers', has: false },
     { key: 'manageMembers', has: false },
     { key: 'manageTenantConfig', has: false },
     { key: 'manageInfra', has: false },
@@ -710,6 +718,7 @@ const roleMatrix: Record<TenantRole, RolePerm[]> = {
     { key: 'readAll', has: true },
   ],
   viewer: [
+    { key: 'createMembers', has: false },
     { key: 'manageMembers', has: false },
     { key: 'manageTenantConfig', has: false },
     { key: 'manageInfra', has: false },

@@ -135,13 +135,13 @@ const router = createRouter({
         {
           path: "knowledge-bases",
           name: "knowledgeBaseList",
-          component: () => import("../views/knowledge/KnowledgeBaseList.vue"),
+          component: () => import("../views/knowledge/KnowledgeWorkspace.vue"),
           meta: { requiresInit: true, requiresAuth: true }
         },
         {
           path: "knowledge-bases/:kbId",
           name: "knowledgeBaseDetail",
-          component: () => import("../views/knowledge/KnowledgeBase.vue"),
+          component: () => import("../views/knowledge/KnowledgeWorkspace.vue"),
           meta: { requiresInit: true, requiresAuth: true }
         },
         {

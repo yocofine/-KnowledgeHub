@@ -80,10 +80,7 @@
             <label>{{ $t('tenant.api.docLabel') }}</label>
             <p>
               {{ $t('tenant.api.docDescription') }}
-              <a class="doc-link" @click="openApiDoc">
-                {{ $t('tenant.api.openDoc') }}
-                <t-icon name="link" class="link-icon" />
-              </a>
+              
             </p>
           </div>
         </div>
@@ -302,15 +299,7 @@
           </div>
         </div>
 
-        <div class="examples">
-          <t-tabs
-            v-if="form.mode === 'signed_token'"
-            v-model="exampleTab"
-            class="snippet-tabs"
-          >
-            <t-tab-panel value="jwt" :label="$t('integrations.api.tokenSignExample')" />
-            <t-tab-panel value="curl" :label="$t('integrations.api.requestExample')" />
-          </t-tabs>
+        <div v-if="form.mode !== 'signed_token'" class="examples">
           <div class="code-panel">
             <div class="code-panel__toolbar">
               <span class="code-panel__label">{{ activeExampleLabel }}</span>

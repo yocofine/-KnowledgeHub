@@ -11,6 +11,12 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
+class ScriptGroupError(ValueError):
+    def __init__(self, status, message):
+        self.status = status
+        super().__init__(message)
+
+
 class Store:
     def __init__(self, path):
         self.path = str(path)
@@ -24,6 +30,10 @@ class Store:
                     created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted INTEGER NOT NULL DEFAULT 0,
                     UNIQUE(owner_id, legacy_id));
                 CREATE INDEX IF NOT EXISTS script_owner ON scripts(owner_id, deleted, updated_at);
+                CREATE TABLE IF NOT EXISTS script_groups (
+                    id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, name TEXT NOT NULL,
+                    created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    UNIQUE(owner_id, name));
                 CREATE TABLE IF NOT EXISTS rules (
                     id TEXT PRIMARY KEY, title TEXT NOT NULL, content TEXT NOT NULL, group_name TEXT NOT NULL,
                     operator TEXT NOT NULL, legacy_id TEXT UNIQUE, native_id TEXT,
@@ -37,11 +47,29 @@ class Store:
                     UNIQUE(owner_id, source_id));
                 CREATE INDEX IF NOT EXISTS question_owner ON questions(owner_id,normalized);
                 CREATE TABLE IF NOT EXISTS settings (name TEXT PRIMARY KEY, ciphertext TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS rule_groups (
+                    id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE,
+                    created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
             """)
             for table in ("scripts", "rules"):
                 columns = {row[1] for row in db.execute(f"PRAGMA table_info({table})")}
                 if "tags" not in columns:
                     db.execute(f"ALTER TABLE {table} ADD COLUMN tags TEXT NOT NULL DEFAULT ''")
+            if "group_id" not in {row[1] for row in db.execute("PRAGMA table_info(scripts)")}:
+                db.execute("ALTER TABLE scripts ADD COLUMN group_id TEXT")
+            if "group_id" not in {row[1] for row in db.execute("PRAGMA table_info(rules)")}:
+                db.execute("ALTER TABLE rules ADD COLUMN group_id TEXT")
+            # Backfill names per owner, preserving existing content and empty groups.
+            if not db.in_transaction:
+                db.execute("BEGIN IMMEDIATE")
+            for row in db.execute("SELECT DISTINCT owner_id,group_name FROM scripts "
+                                  "WHERE deleted=0 AND group_id IS NULL AND group_name!='未分组'").fetchall():
+                group_id = self._ensure_group(db, row["owner_id"], row["group_name"])
+                db.execute("UPDATE scripts SET group_id=? WHERE owner_id=? AND group_name=? "
+                           "AND group_id IS NULL AND deleted=0", (group_id, row["owner_id"], row["group_name"]))
+            for row in db.execute("SELECT DISTINCT group_name FROM rules WHERE deleted=0 AND group_id IS NULL AND group_name!='未分组'").fetchall():
+                group_id = self._ensure_rule_group(db, row["group_name"])
+                db.execute("UPDATE rules SET group_id=? WHERE group_name=? AND group_id IS NULL AND deleted=0", (group_id, row["group_name"]))
 
     @contextmanager
     def connect(self):
@@ -56,13 +84,13 @@ class Store:
     def scripts(self, owner_id, query=""):
         with self.connect() as db:
             return [dict(row) for row in db.execute(
-                "SELECT id,title,content,group_name,tags,created_at,updated_at FROM scripts "
+                "SELECT id,title,content,group_name,group_id,tags,created_at,updated_at FROM scripts "
                 "WHERE owner_id=? AND deleted=0 AND (instr(title,?)>0 OR instr(content,?)>0) "
                 "ORDER BY updated_at DESC LIMIT 500", (owner_id, query, query))]
 
     def script(self, owner_id, item_id):
         with self.connect() as db:
-            row = db.execute("SELECT id,title,content,group_name,tags,created_at,updated_at FROM scripts "
+            row = db.execute("SELECT id,title,content,group_name,group_id,tags,created_at,updated_at FROM scripts "
                              "WHERE owner_id=? AND id=? AND deleted=0", (owner_id, item_id)).fetchone()
             return dict(row) if row else None
 
@@ -70,10 +98,25 @@ class Store:
         # There is deliberately NO administrator bypass of owner_id.
         stamp = now()
         with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if item_id and not db.execute("SELECT 1 FROM scripts WHERE owner_id=? AND id=? AND deleted=0",
+                                          (owner_id, item_id)).fetchone():
+                return None
+            if "group_id" in payload:
+                group_id = payload["group_id"]
+                group = db.execute("SELECT name FROM script_groups WHERE owner_id=? AND id=?",
+                                   (owner_id, group_id)).fetchone() if group_id else None
+                if group_id and not group:
+                    raise ScriptGroupError(404, "话术组不存在或已删除，请重新选择")
+                group_name = group["name"] if group else "未分组"
+            else:
+                # Compatibility for historical imports and older clients.
+                group_name = payload.get("group_name", "默认分组")
+                group_id = self._ensure_group(db, owner_id, group_name)
             if item_id:
-                result = db.execute("UPDATE scripts SET title=?,content=?,group_name=?,updated_at=? "
+                result = db.execute("UPDATE scripts SET title=?,content=?,group_name=?,group_id=?,updated_at=? "
                                     "WHERE owner_id=? AND id=? AND deleted=0",
-                                    (payload["title"], payload["content"], payload["group_name"], stamp, owner_id, item_id))
+                                    (payload["title"], payload["content"], group_name, group_id, stamp, owner_id, item_id))
                 if not result.rowcount:
                     return None
             else:
@@ -83,11 +126,61 @@ class Store:
                     if prior:
                         return self.script(owner_id, prior["id"])
                 item_id = str(uuid4())
-                db.execute("INSERT INTO scripts(id,owner_id,title,content,group_name,legacy_id,created_at,updated_at) "
-                           "VALUES(?,?,?,?,?,?,?,?)", (item_id, owner_id, payload["title"], payload["content"],
-                           payload["group_name"], legacy_id, stamp, stamp))
+                db.execute("INSERT INTO scripts(id,owner_id,title,content,group_name,group_id,legacy_id,created_at,updated_at) "
+                           "VALUES(?,?,?,?,?,?,?,?,?)", (item_id, owner_id, payload["title"], payload["content"],
+                           group_name, group_id, legacy_id, stamp, stamp))
             db.execute("UPDATE scripts SET tags=? WHERE owner_id=? AND id=?", (payload.get("tags", ""), owner_id, item_id))
         return self.script(owner_id, item_id)
+
+    @staticmethod
+    def _ensure_group(db, owner_id, name):
+        if name == "未分组":
+            return None
+        db.execute("INSERT OR IGNORE INTO script_groups(id,owner_id,name,created_at,updated_at) VALUES(?,?,?,?,?)",
+                   (str(uuid4()), owner_id, name, now(), now()))
+        return db.execute("SELECT id FROM script_groups WHERE owner_id=? AND name=?", (owner_id, name)).fetchone()["id"]
+
+    def script_groups(self, owner_id):
+        with self.connect() as db:
+            return [dict(row) for row in db.execute(
+                "SELECT g.id,g.name,COUNT(s.id) AS count FROM script_groups g LEFT JOIN scripts s "
+                "ON s.group_id=g.id AND s.owner_id=g.owner_id AND s.deleted=0 WHERE g.owner_id=? "
+                "GROUP BY g.id ORDER BY g.created_at,g.id", (owner_id,))]
+
+    def save_script_group(self, owner_id, name, group_id=None):
+        if name == "未分组":
+            raise ScriptGroupError(409, "未分组为系统分组，请使用其他名称")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if group_id and not db.execute("SELECT 1 FROM script_groups WHERE owner_id=? AND id=?",
+                                           (owner_id, group_id)).fetchone():
+                raise ScriptGroupError(404, "话术组不存在")
+            duplicate = db.execute("SELECT id FROM script_groups WHERE owner_id=? AND name=?", (owner_id, name)).fetchone()
+            if duplicate and duplicate["id"] != group_id:
+                raise ScriptGroupError(409, "你已有同名话术组，请使用其他名称")
+            stamp = now()
+            if group_id:
+                db.execute("UPDATE script_groups SET name=?,updated_at=? WHERE owner_id=? AND id=?",
+                           (name, stamp, owner_id, group_id))
+                db.execute("UPDATE scripts SET group_name=?,updated_at=? WHERE owner_id=? AND group_id=? AND deleted=0",
+                           (name, stamp, owner_id, group_id))
+            else:
+                group_id = str(uuid4())
+                db.execute("INSERT INTO script_groups(id,owner_id,name,created_at,updated_at) VALUES(?,?,?,?,?)",
+                           (group_id, owner_id, name, stamp, stamp))
+            count = db.execute("SELECT COUNT(*) FROM scripts WHERE owner_id=? AND group_id=? AND deleted=0",
+                               (owner_id, group_id)).fetchone()[0]
+            return {"id": group_id, "name": name, "count": count}
+
+    def delete_script_group(self, owner_id, group_id):
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if not db.execute("SELECT 1 FROM script_groups WHERE owner_id=? AND id=?", (owner_id, group_id)).fetchone():
+                return False
+            db.execute("UPDATE scripts SET group_id=NULL,group_name='未分组',updated_at=? "
+                       "WHERE owner_id=? AND group_id=?", (now(), owner_id, group_id))
+            db.execute("DELETE FROM script_groups WHERE owner_id=? AND id=?", (owner_id, group_id))
+            return True
 
     def delete_script(self, owner_id, item_id):
         with self.connect() as db:
@@ -108,10 +201,22 @@ class Store:
     def save_rule(self, operator, payload, item_id=None, push=False):
         stamp = now()
         with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if item_id and not db.execute("SELECT 1 FROM rules WHERE id=? AND deleted=0", (item_id,)).fetchone():
+                return None
+            if "group_id" in payload:
+                group_id = payload["group_id"]
+                group = db.execute("SELECT name FROM rule_groups WHERE id=?", (group_id,)).fetchone() if group_id else None
+                if group_id and not group:
+                    raise ScriptGroupError(404, "规则分组不存在或已删除，请重新选择")
+                group_name = group["name"] if group else "未分组"
+            else:
+                group_name = payload.get("group_name", "默认分组")
+                group_id = self._ensure_rule_group(db, group_name)
             if item_id:
-                result = db.execute("UPDATE rules SET title=?,content=?,group_name=?,operator=?,updated_at=?,"
+                result = db.execute("UPDATE rules SET title=?,content=?,group_name=?,group_id=?,operator=?,updated_at=?,"
                     "version=version+1,state='pending',error='',push_requested=?,push_status=? WHERE id=? AND deleted=0",
-                    (payload["title"], payload["content"], payload["group_name"], operator, stamp, int(push),
+                    (payload["title"], payload["content"], group_name, group_id, operator, stamp, int(push),
                      "pending" if push else "not_requested", item_id))
                 if not result.rowcount:
                     return None
@@ -122,12 +227,58 @@ class Store:
                     if prior:
                         return self.rule(prior["id"])
                 item_id = str(uuid4())
-                db.execute("INSERT INTO rules(id,title,content,group_name,operator,legacy_id,push_requested,"
-                    "push_status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)", (item_id, payload["title"],
-                    payload["content"], payload["group_name"], operator, legacy, int(push),
+                db.execute("INSERT INTO rules(id,title,content,group_name,group_id,operator,legacy_id,push_requested,"
+                    "push_status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (item_id, payload["title"],
+                    payload["content"], group_name, group_id, operator, legacy, int(push),
                     "pending" if push else "not_requested", stamp, stamp))
             db.execute("UPDATE rules SET tags=? WHERE id=?", (payload.get("tags", ""), item_id))
         return self.rule(item_id)
+
+    @staticmethod
+    def _ensure_rule_group(db, name):
+        if name == "未分组":
+            return None
+        db.execute("INSERT OR IGNORE INTO rule_groups(id,name,created_at,updated_at) VALUES(?,?,?,?)",
+                   (str(uuid4()), name, now(), now()))
+        return db.execute("SELECT id FROM rule_groups WHERE name=?", (name,)).fetchone()["id"]
+
+    def rule_groups(self):
+        with self.connect() as db:
+            return [dict(row) for row in db.execute("SELECT g.id,g.name,COUNT(r.id) AS count FROM rule_groups g "
+                "LEFT JOIN rules r ON r.group_id=g.id AND r.deleted=0 GROUP BY g.id ORDER BY g.created_at,g.id")]
+
+    def save_rule_group(self, name, group_id=None):
+        if name == "未分组":
+            raise ScriptGroupError(409, "未分组为系统分组，请使用其他名称")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if group_id and not db.execute("SELECT 1 FROM rule_groups WHERE id=?", (group_id,)).fetchone():
+                raise ScriptGroupError(404, "规则分组不存在")
+            duplicate = db.execute("SELECT id FROM rule_groups WHERE name=?", (name,)).fetchone()
+            if duplicate and duplicate["id"] != group_id:
+                raise ScriptGroupError(409, "已有同名规则分组，请使用其他名称")
+            stamp = now()
+            if group_id:
+                db.execute("UPDATE rule_groups SET name=?,updated_at=? WHERE id=?", (name, stamp, group_id))
+                # Keep indexed group metadata current, but never resend DingTalk notifications.
+                db.execute("UPDATE rules SET group_name=?,updated_at=?,version=version+1,state='pending',error='' "
+                           "WHERE group_id=? AND deleted=0", (name, stamp, group_id))
+            else:
+                group_id = str(uuid4())
+                db.execute("INSERT INTO rule_groups(id,name,created_at,updated_at) VALUES(?,?,?,?)",
+                           (group_id, name, stamp, stamp))
+            count = db.execute("SELECT COUNT(*) FROM rules WHERE group_id=? AND deleted=0", (group_id,)).fetchone()[0]
+            return {"id": group_id, "name": name, "count": count}
+
+    def delete_rule_group(self, group_id):
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if not db.execute("SELECT 1 FROM rule_groups WHERE id=?", (group_id,)).fetchone():
+                return False
+            db.execute("UPDATE rules SET group_id=NULL,group_name='未分组',updated_at=?,version=version+1,"
+                       "state=CASE WHEN deleted=0 THEN 'pending' ELSE state END,error='' WHERE group_id=?", (now(), group_id))
+            db.execute("DELETE FROM rule_groups WHERE id=?", (group_id,))
+            return True
 
     def delete_rule(self, item_id):
         with self.connect() as db:

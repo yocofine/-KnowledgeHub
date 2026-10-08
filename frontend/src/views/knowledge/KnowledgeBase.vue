@@ -83,6 +83,7 @@ import { useI18n } from 'vue-i18n';
 import { useMarqueeSelect } from '@/hooks/useMarqueeSelect';
 import type { ParserEngineInfo } from '@/api/system';
 const route = useRoute();
+const props = withDefaults(defineProps<{ editorHost?: boolean }>(), { editorHost: true });
 const { t } = useI18n();
 const kbId = computed(() => (route.params as any).kbId as string || '');
 const kbInfo = ref<any>(null);
@@ -2596,7 +2597,7 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
   </template>
 
   <!-- 知识库编辑器（创建/编辑统一组件） -->
-  <KnowledgeBaseEditorModal :visible="uiStore.showKBEditorModal" :mode="uiStore.kbEditorMode"
+  <KnowledgeBaseEditorModal v-if="props.editorHost" :visible="uiStore.showKBEditorModal" :mode="uiStore.kbEditorMode"
     :kb-id="uiStore.currentKBId || undefined" :initial-type="uiStore.kbEditorType"
     @update:visible="(val) => val ? null : uiStore.closeKBEditor()" @success="handleKBEditorSuccess" />
 

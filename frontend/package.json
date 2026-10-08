@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/copy-pdf-preview-assets.mjs",
+    "prebuild": "node scripts/copy-pdf-preview-assets.mjs",
+    "prebuild-only": "node scripts/copy-pdf-preview-assets.mjs",
     "dev": "vite",
     "build": "vite build",
     "build-with-types": "run-p type-check \"build-only {@}\" --",
@@ -34,6 +37,7 @@
     "mermaid": "^11.15.0",
     "pagefind": "^1.5.2",
     "papaparse": "^5.5.3",
+    "pdfjs-dist": "6.4.299",
     "pinia": "^3.0.4",
     "swiper": "^12.1.4",
     "tdesign-icons-vue-next": "0.4.4",

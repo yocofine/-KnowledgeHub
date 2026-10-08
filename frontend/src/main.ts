@@ -7,6 +7,8 @@ import TDesign from "tdesign-vue-next";
 import "tdesign-vue-next/dist/tdesign.css";
 import "@/assets/theme/theme.css";
 import "@/assets/theme/tdesign-overrides.less";
+import "@/assets/theme/knowledgehub-brand.css";
+import "@/assets/theme/reference-ui.css";
 import "@/assets/dropdown-menu.less";
 import "@/components/css/chat-hljs-dark.less";
 // vue-virtual-scroller ships its own tiny stylesheet — required for
@@ -31,7 +33,7 @@ async function bootstrap() {
 
   // 全局错误处理：捕获未处理的组件错误，防止白屏
   app.config.errorHandler = (err, instance, info) => {
-    console.error("[WeKnora] Unhandled Vue error:", err, "\nComponent:", instance, "\nInfo:", info);
+    console.error("[KnowledgeHub] Unhandled Vue error:", err, "\nComponent:", instance, "\nInfo:", info);
   };
 
   app.use(TDesign);

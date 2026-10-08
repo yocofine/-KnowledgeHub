@@ -27,11 +27,7 @@
             ? 'modelSettings.builtinModels.descriptionAdmin'
             : 'modelSettings.builtinModels.description') }}
         </p>
-        <a class="doc-link" href="https://github.com/Tencent/WeKnora/blob/main/website-docs/03-features/06-models.md" target="_blank"
-          rel="noopener noreferrer">
-          {{ $t('modelSettings.builtinModels.viewGuide') }}
-          <t-icon name="link" class="link-icon" />
-        </a>
+        
       </div>
     </div>
 

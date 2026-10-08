@@ -6,15 +6,7 @@
           <h2>{{ $t('agentEditor.im.title') }}</h2>
           <p class="section-description">
             {{ $t('agentEditor.im.description') }}
-            <a
-              href="https://github.com/Tencent/WeKnora/blob/main/website-docs/03-features/12-im-integration.md"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="doc-link"
-            >
-              {{ $t('agentEditor.im.docLink') }}
-              <t-icon name="link" class="link-icon" />
-            </a>
+
           </p>
         </div>
         <IMChannelPanel v-model:filter-agent-id="filterAgentId" />
@@ -44,9 +36,6 @@
         <McpServerIntegrationSettings />
       </div>
 
-      <ChromeExtensionLanding v-if="tab === 'chrome'" />
-      <ClawSkillLanding v-if="tab === 'claw'" />
-      <CliIntegrationLanding v-if="tab === 'cli'" />
     </div>
   </div>
 </template>
@@ -58,9 +47,6 @@ import IMChannelPanel from '@/components/IMChannelPanel.vue'
 import AgentEmbedChannelPanel from '@/components/AgentEmbedChannelPanel.vue'
 import ApiIntegrationSettings from '@/views/integrations/ApiIntegrationSettings.vue'
 import McpServerIntegrationSettings from '@/views/integrations/McpServerIntegrationSettings.vue'
-import ChromeExtensionLanding from '@/views/integrations/ChromeExtensionLanding.vue'
-import ClawSkillLanding from '@/views/integrations/ClawSkillLanding.vue'
-import CliIntegrationLanding from '@/views/integrations/CliIntegrationLanding.vue'
 import type { IntegrationTab } from '@/config/integrations'
 
 const filterAgentId = ref('')

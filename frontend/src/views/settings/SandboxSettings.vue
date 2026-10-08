@@ -21,10 +21,7 @@
           <p class="section-description">{{ $t('settings.sandbox.description') }}</p>
         </div>
         <div class="header-actions">
-          <a class="header-action-link" :href="sandboxGuideUrl" target="_blank" rel="noopener noreferrer">
-            <t-icon name="help-circle" />
-            {{ $t('settings.sandbox.viewClusterGuide') }}
-          </a>
+          
         </div>
       </div>
     </div>

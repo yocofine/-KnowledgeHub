@@ -100,6 +100,65 @@ class APITests(unittest.TestCase):
         self.main.store.save_settings(self.main.cipher, {"test": "private-plain-secret"})
         self.assertNotIn(b"private-plain-secret", Path(self.main.store.path).read_bytes())
 
+    def test_group_crud_for_normal_user_retains_scripts(self):
+        group = self.client.post("/api/v1/edu/script-groups", json={"name": " my group "}).json()["data"]
+        self.assertEqual(group["name"], "my group")
+        item = self.client.post("/api/v1/edu/scripts", json={**self.content(), "group_id": group["id"]}).json()["data"]
+        self.assertEqual(item["group_name"], "my group")
+        response = self.client.put(f'/api/v1/edu/script-groups/{group["id"]}', json={"name": "renamed"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["count"], 1)
+        self.assertEqual(self.client.get(f'/api/v1/edu/scripts/{item["id"]}').json()["data"]["group_name"], "renamed")
+        self.assertEqual(self.client.delete(f'/api/v1/edu/script-groups/{group["id"]}').status_code, 200)
+        self.assertEqual(self.client.get(f'/api/v1/edu/scripts/{item["id"]}').json()["data"]["group_name"], "未分组")
+
+    def test_group_api_ignores_admin_bypass_and_rejects_owner_body(self):
+        group = self.client.post("/api/v1/edu/script-groups", json={"name": "private"}).json()["data"]
+        self.identity = self.main.Actor("root", "Admin", True)
+        self.assertEqual(self.client.get("/api/v1/edu/script-groups?owner_id=alice").json()["data"], [])
+        self.assertEqual(self.client.put(f'/api/v1/edu/script-groups/{group["id"]}', json={"name": "steal"}).status_code, 404)
+        self.assertEqual(self.client.delete(f'/api/v1/edu/script-groups/{group["id"]}').status_code, 404)
+        self.assertEqual(self.client.post("/api/v1/edu/scripts", json={**self.content(), "group_id": group["id"]}).status_code, 404)
+        self.assertEqual(self.client.post("/api/v1/edu/script-groups", json={"name": "x", "owner_id": "alice"}).status_code, 422)
+
+    def test_group_name_validation_and_duplicate_feedback(self):
+        for name in ("", "   ", "x" * 121):
+            self.assertEqual(self.client.post("/api/v1/edu/script-groups", json={"name": name}).status_code, 422)
+        self.assertEqual(self.client.post("/api/v1/edu/script-groups", json={"name": "未分组"}).status_code, 409)
+        self.client.post("/api/v1/edu/script-groups", json={"name": "same"})
+        self.assertEqual(self.client.post("/api/v1/edu/script-groups", json={"name": "same"}).status_code, 409)
+
+    def test_group_anonymous_access_requires_login(self):
+        self.main.app.dependency_overrides.clear()
+        for method in (self.client.get, self.client.post):
+            self.assertIn(method("/api/v1/edu/script-groups").status_code, (401, 403))
+
+    def test_rule_groups_shared_read_but_mutations_are_manager_only(self):
+        self.identity = self.main.Actor("root", "Admin", True)
+        group = self.client.post("/api/v1/edu/rule-groups", json={"name": "shared"}).json()["data"]
+        self.identity = self.main.Actor("alice", "Alice", False)
+        self.assertEqual(self.client.get("/api/v1/edu/rule-groups").json()["data"], [group])
+        self.assertEqual(self.client.post("/api/v1/edu/rule-groups", json={"name": "new"}).status_code, 403)
+        self.assertEqual(self.client.put(f'/api/v1/edu/rule-groups/{group["id"]}', json={"name": "rename"}).status_code, 403)
+        self.assertEqual(self.client.delete(f'/api/v1/edu/rule-groups/{group["id"]}').status_code, 403)
+        self.assertEqual(self.client.get("/api/v1/edu/script-groups").json()["data"], [])
+
+    def test_rule_group_crud_preserves_rule(self):
+        self.identity = self.main.Actor("root", "Admin", True)
+        group = self.client.post("/api/v1/edu/rule-groups", json={"name": "shared"}).json()["data"]
+        rule = self.client.post("/api/v1/edu/rules", json={**self.content(), "group_id": group["id"], "push": False}).json()["data"]
+        self.assertEqual(self.client.put(f'/api/v1/edu/rule-groups/{group["id"]}', json={"name": "renamed"}).status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/edu/rules").json()["data"][0]["group_name"], "renamed")
+        self.assertEqual(self.client.delete(f'/api/v1/edu/rule-groups/{group["id"]}').status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/edu/rules").json()["data"][0]["id"], rule["id"])
+        self.assertEqual(self.client.get("/api/v1/edu/rules").json()["data"][0]["group_name"], "未分组")
+
+    def test_rule_group_duplicates_and_invalid_names_are_rejected(self):
+        self.identity = self.main.Actor("root", "Admin", True)
+        self.client.post("/api/v1/edu/rule-groups", json={"name": "same"})
+        self.assertEqual(self.client.post("/api/v1/edu/rule-groups", json={"name": "same"}).status_code, 409)
+        self.assertEqual(self.client.post("/api/v1/edu/rule-groups", json={"name": " "}).status_code, 422)
+
 
 class RendererTests(unittest.TestCase):
     @unittest.skipUnless(HAVE_API_TESTS, "Renderer tests require httpx")

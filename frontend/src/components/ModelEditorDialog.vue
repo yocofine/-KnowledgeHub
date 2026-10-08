@@ -220,11 +220,7 @@
               <t-icon name="check-circle-filled" class="hint-icon hint-icon--ok" />
               <div>
                 {{ $t('settings.weknoraCloud.modelHintConfigured') }}
-                <a href="https://developers.weixin.qq.com/doc/aispeech/knowledge/atomic_capability/atomic_interface.html"
-                  target="_blank" rel="noopener noreferrer" class="doc-link">
-                  {{ $t('settings.weknoraCloud.modelHintDocsLink') }}
-                  <t-icon name="link" class="link-icon" />
-                </a>
+                
               </div>
             </div>
 
@@ -591,10 +587,7 @@
               <p v-if="specCompatError" class="form-desc form-desc--error">{{ $t('model.editor.advanced.compat.invalid') }}: {{ specCompatError }}</p>
               <p v-else class="form-desc">
                 {{ $t('model.editor.advanced.compat.desc') }}
-                <a :href="COMPAT_DOC_URL" target="_blank" rel="noopener noreferrer" class="compat-doc-link">
-                  {{ $t('model.editor.advanced.compat.docLink') }}
-                  <t-icon name="jump" size="12px" />
-                </a>
+                
               </p>
             </div>
           </template>
@@ -761,7 +754,7 @@ const loadProviders = async () => {
   }
 }
 
-const providerOptions = computed<ModelProviderOption[]>(() => providersStore.providersFor(activeModelType.value))
+const providerOptions = computed<ModelProviderOption[]>(() => providersStore.providersFor(activeModelType.value).filter(p => p.value !== 'weknoracloud'))
 
 const selectedProvider = computed<ModelProviderOption | undefined>(() => {
   const id = formData.value.provider
@@ -770,7 +763,7 @@ const selectedProvider = computed<ModelProviderOption | undefined>(() => {
 })
 
 const currentLocale = computed(() => String(locale.value || ''))
-const providerDisplayLabel = (p: ModelProviderOption) => providerLabel(p, currentLocale.value)
+const providerDisplayLabel = (p: ModelProviderOption) => p.value === 'weknoracloud' ? '云服务' : providerLabel(p, currentLocale.value)
 const providerDisplayDescription = (p: ModelProviderOption) => providerDescription(p, currentLocale.value)
 const selectedProviderIcon = computed(() => providerIcon(selectedProvider.value))
 /** Localized vendor name, or the raw stored id when the catalog no longer has it. */

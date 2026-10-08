@@ -29,6 +29,8 @@ import {
 
 
 const VueOfficePptx = defineAsyncComponent(() => import('@vue-office/pptx'));
+const PdfRangePreview = defineAsyncComponent(() => import('./PdfRangePreview.vue'));
+const rangePdf = ref(false);
 
 const { t } = useI18n();
 
@@ -379,6 +381,14 @@ async function loadPreview() {
   let ft = resolveFilePreviewExt(props.fileName, props.fileType);
   previewType.value = resolvePreviewKind(ft);
 
+  // Authenticated Range requests render page one without downloading the full PDF.
+  if (previewType.value === 'pdf' && props.knowledgeId && !props.sourceBlob) {
+    rangePdf.value = true;
+    loadedForId = sourceKey;
+    loading.value = false;
+    return;
+  }
+
   try {
     const rawBlob = await fetchPreviewBlob();
     let kind = resolvePreviewKind(ft);
@@ -454,6 +464,7 @@ async function loadPreview() {
 }
 
 function cleanup() {
+  rangePdf.value = false;
   if (blobUrl.value) {
     URL.revokeObjectURL(blobUrl.value);
     blobUrl.value = '';
@@ -538,6 +549,9 @@ onUnmounted(() => {
     </div>
 
     <!-- PDF -->
+    <div v-else-if="previewType === 'pdf' && rangePdf && knowledgeId" ref="previewContent" tabindex="0" :aria-label="fileName" class="preview-pdf">
+      <PdfRangePreview :knowledge-id="knowledgeId" :active="active" :file-name="fileName" />
+    </div>
     <div v-else-if="previewType === 'pdf' && blobUrl" class="preview-pdf">
       <iframe ref="previewContent" tabindex="0" :title="fileName" :src="blobUrl" class="pdf-iframe" @load="onPreviewFrameLoad" />
     </div>

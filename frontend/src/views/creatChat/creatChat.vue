@@ -1,9 +1,11 @@
 <template>
     <div class="dialogue-wrap">
         <div class="dialogue-answers">
-            <div class="dialogue-title" style="--wails-draggable: drag">
-                <span style="--wails-draggable: drag">{{ $t('createChat.title') }}</span>
-            </div>
+            <img class="kh-home-mark" src="/brand/classbro-mark.webp" alt="" width="104" height="112" />
+            <h1 class="dialogue-title" style="--wails-draggable: drag">
+                <span style="--wails-draggable: drag"><template v-if="homeTitleParts.length > 1">{{ homeTitleParts[0] }}<strong>KnowledgeHub</strong>{{ homeTitleParts.slice(1).join('KnowledgeHub') }}</template><template v-else>{{ $t('createChat.title') }}</template></span>
+            </h1>
+            <p class="kh-home-caption">汇聚知识 · 激发灵感 · 提升效率</p>
             <!-- 推荐问题 -->
             <div ref="sqContainerRef" class="suggested-questions-container">
                 <!-- 骨架屏占位 -->
@@ -59,6 +61,11 @@
                 </div>
                 <InputField ref="inputFieldRef" @send-msg="sendMsg"></InputField>
             </div>
+            <nav class="kh-home-links" aria-label="知识工作空间快捷入口">
+                <RouterLink to="/platform/knowledge-bases" class="kh-home-link"><t-icon name="file-search" aria-hidden="true" /><strong>知识检索</strong><span>快速查找组织内的知识内容<br />获取精准答案</span><t-icon name="arrow-right" class="kh-link-arrow" aria-hidden="true" /></RouterLink>
+                <RouterLink to="/platform/edu-scripts" class="kh-home-link"><t-icon name="chat" aria-hidden="true" /><strong>个人话术</strong><span>沉淀高频话术模板<br />提升沟通效率</span><t-icon name="arrow-right" class="kh-link-arrow" aria-hidden="true" /></RouterLink>
+                <RouterLink to="/platform/edu-rules" class="kh-home-link"><t-icon name="notification" aria-hidden="true" /><strong>规则通知</strong><span>查看最新规则与平台通知<br />及时掌握动态</span><t-icon name="arrow-right" class="kh-link-arrow" aria-hidden="true" /></RouterLink>
+            </nav>
         </div>
     </div>
 
@@ -103,6 +110,7 @@ onBeforeRouteLeave((to) => {
 const uiStore = useUIStore();
 const deploymentCapabilities = useDeploymentCapabilitiesStore();
 const { t } = useI18n();
+const homeTitleParts = computed(() => String(t('createChat.title')).split('KnowledgeHub'));
 const { navigateToKnowledgeBaseList } = useKnowledgeBaseCreationNavigation();
 
 const hostSandboxEnabled = computed(() =>

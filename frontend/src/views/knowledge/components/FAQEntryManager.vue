@@ -165,7 +165,7 @@
             </div>
             <!-- Card List -->
             <template v-else-if="entries.length > 0">
-              <div ref="cardListRef" class="faq-card-list">
+              <div class="faq-card-list">
                 <div v-for="entry in entries" :key="entry.id" class="faq-card"
                   :class="{ 'selected': selectedRowKeys.includes(entry.id), 'is-selectable': canSelectEntries }"
                   @click="handleCardSelect(entry.id, !selectedRowKeys.includes(entry.id))">
@@ -950,7 +950,6 @@ const batchActionLoading = computed(() => (
   || batchStatusAction.value != null
 ))
 const scrollContainer = ref<HTMLElement | null>(null)
-const cardListRef = ref<HTMLElement | null>(null)
 const hasMore = ref(true)
 const pageSize = 20
 let currentPage = 1
@@ -1395,9 +1394,8 @@ const loadEntries = async (append = false) => {
     hasMore.value = entries.value.length < (pageData.total || 0)
     currentPage++
 
-    // 等待 DOM 更新后重新布局
+    // 等待 DOM 更新，让 CSS Grid 完成布局。
     await nextTick()
-    arrangeCards()
   } catch (error: any) {
     MessagePlugin.error(error?.message || t('common.operationFailed'))
   } finally {
@@ -1405,7 +1403,7 @@ const loadEntries = async (append = false) => {
     loadingMore.value = false
 
     // 检查是否需要继续加载以填满可视区域
-    // 延迟执行以确保 arrangeCards 的 requestAnimationFrame 完成
+    // 布局完成后检查，保留原有自动填满可视区域的加载逻辑。
     setTimeout(() => {
       checkAndLoadMore()
     }, 350)
@@ -2229,10 +2227,10 @@ const downloadExampleOptions = computed(() => [
 // 示例数据
 const exampleData: FAQEntryPayload[] = [
   {
-    standard_question: '什么是 WeKnora？',
-    answers: ['WeKnora 是一个智能知识库管理系统', '它支持多种知识库类型和导入方式'],
-    similar_questions: ['WeKnora 是什么？', '介绍一下 WeKnora'],
-    negative_questions: ['这不是 WeKnora', '与 WeKnora 无关'],
+    standard_question: '什么是智导 KnowledgeHub？',
+    answers: ['智导 KnowledgeHub 是一个知识工作空间', '它支持多种知识库类型和导入方式'],
+    similar_questions: ['智导 KnowledgeHub 是什么？', '介绍一下智导 KnowledgeHub'],
+    negative_questions: ['这不是知识库问题', '与知识库无关'],
     tag_name: '产品介绍',
   },
   {
@@ -2463,112 +2461,7 @@ const toggleResult = (result: FAQEntry) => {
   result.expanded = !result.expanded
 }
 
-// 防抖函数
-let arrangeCardsTimer: ReturnType<typeof setTimeout> | null = null
-const debounceArrangeCards = (delay = 100) => {
-  if (arrangeCardsTimer) {
-    clearTimeout(arrangeCardsTimer)
-  }
-  arrangeCardsTimer = setTimeout(() => {
-    arrangeCards()
-    arrangeCardsTimer = null
-  }, delay)
-}
-
-// 瀑布流布局函数 - 优化版本，避免闪烁
-const arrangeCards = () => {
-  if (!cardListRef.value) return
-
-  const cards = cardListRef.value.querySelectorAll('.faq-card') as NodeListOf<HTMLElement>
-  if (cards.length === 0) return
-
-  // 获取容器宽度和列数
-  const containerWidth = cardListRef.value.offsetWidth
-  const gap = 12 // 与 CSS gap 保持一致
-  let columnCount = 1
-
-  // 根据容器宽度计算列数（增加每行的卡片数量）
-  if (containerWidth >= 2560) columnCount = 12
-  else if (containerWidth >= 1920) columnCount = 10
-  else if (containerWidth >= 1536) columnCount = 8
-  else if (containerWidth >= 1280) columnCount = 6
-  else if (containerWidth >= 1024) columnCount = 5
-  else if (containerWidth >= 768) columnCount = 4
-  else if (containerWidth >= 640) columnCount = 3
-
-  const columnWidth = (containerWidth - (gap * (columnCount - 1))) / columnCount
-
-  // 初始化每列的高度数组
-  const columnHeights = new Array(columnCount).fill(0)
-
-  // 使用 requestAnimationFrame 优化性能
-  requestAnimationFrame(() => {
-    // 先设置宽度，保持当前位置不变
-    cards.forEach((card) => {
-      // 确保卡片是绝对定位
-      if (card.style.position !== 'absolute') {
-        card.style.position = 'absolute'
-      }
-      // 设置宽度以便正确计算高度
-      card.style.width = `${columnWidth}px`
-    })
-
-    // 等待浏览器重新计算布局
-    requestAnimationFrame(() => {
-      // 计算所有卡片的高度（不改变位置）
-      const cardHeights: number[] = []
-      cards.forEach((card) => {
-        const height = card.offsetHeight || card.getBoundingClientRect().height
-        cardHeights.push(height)
-      })
-
-      // 计算新位置
-      const newPositions: Array<{ top: number; left: number }> = []
-      cardHeights.forEach((height) => {
-        const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights))
-        const top = columnHeights[shortestColumnIndex]
-        const left = shortestColumnIndex * (columnWidth + gap)
-
-        newPositions.push({ top, left })
-        columnHeights[shortestColumnIndex] += height + gap
-      })
-
-      // 批量更新所有卡片位置，使用CSS过渡实现平滑移动
-      cards.forEach((card, index) => {
-        const { top, left } = newPositions[index]
-        const currentTop = parseFloat(card.style.top) || 0
-        const currentLeft = parseFloat(card.style.left) || 0
-
-        // 如果位置发生变化，添加过渡效果
-        if (Math.abs(currentTop - top) > 1 || Math.abs(currentLeft - left) > 1) {
-          // 使用 will-change 提示浏览器优化
-          card.style.willChange = 'top, left'
-          card.style.transition = 'top 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-        }
-
-        card.style.position = 'absolute'
-        card.style.top = `${top}px`
-        card.style.left = `${left}px`
-        card.style.width = `${columnWidth}px`
-      })
-
-      // 设置容器高度
-      const maxHeight = Math.max(...columnHeights)
-      if (cardListRef.value) {
-        cardListRef.value.style.height = `${maxHeight}px`
-        cardListRef.value.style.position = 'relative'
-      }
-
-      // 动画完成后移除过渡和 will-change，避免影响后续交互
-      setTimeout(() => {
-        cards.forEach((card) => {
-          card.style.transition = ''
-          card.style.willChange = ''
-        })
-      }, 300)
-    })
-  })
-}
+// CSS Grid owns row height and card positions; no absolute-position layout.
 
 // 监听窗口大小变化（使用防抖）
 let resizeTimer: ReturnType<typeof setTimeout> | null = null
@@ -2577,7 +2470,6 @@ const handleResize = () => {
     clearTimeout(resizeTimer)
   }
   resizeTimer = setTimeout(() => {
-    arrangeCards()
     // 窗口变大时可能需要加载更多，延迟执行确保布局完成
     setTimeout(() => {
       checkAndLoadMore()
@@ -2600,41 +2492,11 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
-  if (arrangeCardsTimer) {
-    clearTimeout(arrangeCardsTimer)
-  }
   if (resizeTimer) {
     clearTimeout(resizeTimer)
   }
 })
 
-// 监听 entries 变化，重新布局
-watch(() => entries.value.length, () => {
-  nextTick(() => {
-    arrangeCards()
-  })
-})
-
-// 监听折叠状态变化，重新布局（使用防抖和动画完成后的回调）
-watch(() => entries.value.map(e => ({
-  id: e.id,
-  similarCollapsed: e.similarCollapsed,
-  negativeCollapsed: e.negativeCollapsed,
-  answersCollapsed: e.answersCollapsed
-})), () => {
-  // 使用 nextTick 确保 DOM 更新
-  nextTick(() => {
-    // 等待一个渲染帧，让高度变化生效
-    requestAnimationFrame(() => {
-      // 再等待一个渲染帧，确保高度计算准确
-      requestAnimationFrame(() => {
-        // 等待 Transition 动画完成后再布局（slide-down 动画时长约 200ms）
-        // 使用防抖避免频繁调用
-        debounceArrangeCards(250)
-      })
-    })
-  })
-}, { deep: true })
 </script>
 
 <style scoped lang="less">
@@ -3162,7 +3024,7 @@ watch(() => entries.value.map(e => ({
 
 .faq-skeleton-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, min(340px, 100%));
   gap: 12px;
   width: 100%;
   animation: contentFadeIn 0.32s ease-out;
@@ -3187,9 +3049,12 @@ watch(() => entries.value.map(e => ({
   }
 }
 
-// 卡片列表样式 - 使用绝对定位实现瀑布流，下一行补齐上一行空缺
+// 卡片按行等高；底部状态对齐，避免瀑布流造成错位。
 .faq-card-list {
-  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, min(340px, 100%));
+  align-items: stretch;
+  gap: 12px;
   width: 100%;
   animation: contentFadeIn 0.32s ease-out;
   min-width: 0;
@@ -3210,7 +3075,7 @@ watch(() => entries.value.map(e => ({
   cursor: default;
   transition: border-color var(--app-motion-base) ease, box-shadow var(--app-motion-base) ease, background-color var(--app-motion-base) ease;
   box-sizing: border-box;
-  height: fit-content;
+  height: auto;
 
   &.is-selectable {
     cursor: pointer;
@@ -3287,7 +3152,7 @@ watch(() => entries.value.map(e => ({
   justify-content: space-between;
   gap: 6px;
   padding: 8px 12px;
-  margin: 0 -10px -10px;
+  margin: auto -10px -10px;
   background: rgba(48, 50, 54, 0.02);
   border-top: 1px solid var(--td-component-stroke);
   flex-wrap: nowrap;

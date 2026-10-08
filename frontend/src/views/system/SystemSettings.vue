@@ -152,25 +152,6 @@
             </div>
           </div>
 
-          <div v-if="activeSettingsSection === 'access'" class="setting-row setting-row--create-user">
-            <div class="setting-info">
-              <div class="setting-label">
-                <span>{{ t('system.globalSettings.createUser.label') }}</span>
-                <t-tag theme="danger" variant="light" size="small" class="setting-badge">
-                  {{ t('system.globalSettings.badgeHighRisk') }}
-                </t-tag>
-              </div>
-              <p class="desc">{{ t('system.globalSettings.createUser.description') }}</p>
-            </div>
-            <div class="setting-control">
-              <CreateUserDialog v-model:visible="createUserVisible" @announced="saveAnnouncement = $event">
-                <t-button theme="primary" variant="text" class="create-user-trigger">
-                  <template #icon><t-icon name="user-add" /></template>
-                  {{ t('system.globalSettings.createUser.action') }}
-                </t-button>
-              </CreateUserDialog>
-            </div>
-          </div>
 
           <div v-for="item in activeSectionSettings" :key="item.key" class="setting-row">
             <div class="setting-info">
@@ -338,7 +319,6 @@ import {
   revokeSystemAdmin,
   type SystemSettingItem,
 } from '@/api/system'
-import CreateUserDialog from './CreateUserDialog.vue'
 import ResetPasswordDialog from './ResetPasswordDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useDeploymentCapabilitiesStore } from '@/stores/deploymentCapabilities'
@@ -561,7 +541,6 @@ const adminBusy = ref(false)
 // (CreateUserDialog.vue / ResetPasswordDialog.vue, same Access row);
 // only their visibility is owned here.
 const passwordResetVisible = ref(false)
-const createUserVisible = ref(false)
 
 // Guards ssrf.whitelist while an async confirm roundtrip is in flight.
 const listConfirmBusyKey = ref<string | null>(null)

@@ -4,6 +4,14 @@
 
 ## 数据与权限
 
+### 话术与规则分组
+
+话术库、规则通知采用主导航 / 分组栏 / 内容卡片的三段式布局。卡片使用紧凑预览，长内容可展开，复制仍复制完整正文。
+
+话术组按当前 JWT 用户隔离，包括管理员；规则组为公共分组，仅现有规则管理员可创建、重命名或删除。分组使用稳定 ID，空组也会保留；重命名同步关联内容，删除组只将内容移到“未分组”，不删除正文。
+
+首次启动自动补建历史分组，不改动正文或归属。规则分组变化会刷新检索元数据，但不重新推送已完成的钉钉通知。部署前备份扩展 SQLite 与静态文件，后端健康检查及旧内容摘要校验通过后再发布前端。
+
 迁移新邮箱账号，不复制旧密码。账号映射、密码和 API Key 不提交 Git。按用户选择，user1 和 Tilley 不迁入，其话术不归给管理员。当前有效数据为 12 个文件、管理员 3 条话术、5 条规则。独立 FAQ 库保留；旧 3 条 FAQ 都已删除，不恢复。
 
 原件和预览共 28 项已备份并校验 SHA256。软删除数据、旧用户、聊天和审计历史保留在旧站及数据库备份，不冒充新账号的数据。
@@ -44,6 +52,44 @@ cd frontend
 npm ci --registry=https://registry.npmmirror.com --no-audit --no-fund
 VITE_IS_DOCKER=true VITE_FRONTEND_COMMIT=$(git rev-parse --short HEAD) npm run build
 ```
+
+### 助手身份与企微提示词
+
+`edu/compose.yml` 同时只读挂载 `config/config.yaml` 和 `config/prompt_templates/`。
+默认问候、闲聊、文档分析、兜底与智能体模板使用“智导 KnowledgeHub”；修改模板后仅重建 app，使启动时加载的模板生效。
+
+企微绑定的智能体还可能在数据库 `custom_agents.config.intent_prompts` 中保存独立提示词，优先于默认模板。
+只修改普通 `system_prompt` 或文件模板不会覆盖这些自定义问候。
+编辑时应检查每个意图的身份描述，保留业务要求、模型、知识库范围和用户的自定义昵称。
+`edu/prompt_brand.py` 提供定向转换：只清理意图提示词 `You are ...` 行的旧名称和旧厂商归属，不修改技术标识或其他配置。
+旧聊天历史不会被重写；验收应使用新会话。
+
+### 关键词索引故障恢复
+
+若日志出现 `item_pointer_is_valid(ctid)` / `SQLSTATE XX000`，先在服务器进行只读检测：
+
+```bash
+cd /root/WeKnora-edu
+python3 edu/repair_keyword_index.py
+```
+
+只有复现该特定错误时，才在空闲时段显式修复：
+
+```bash
+python3 edu/repair_keyword_index.py --apply
+```
+
+脚本先生成并验证完整 PostgreSQL 私有备份，再在事务内重建唯一的
+`public.embeddings_search_idx` BM25 索引，校验嵌入表记录数量及内容指纹不变。
+设置锁等待、执行时间和维护内存上限；不删除原件、文档或向量，不重启数据库。
+其他数据库错误、备份失败或意外索引定义均拒绝自动修复。
+重建期间查询和写入可能短暂等待；此操作恢复现有索引故障，不代表底层扩展永远不会再故障。
+上游同类报告：[BM25 index corruption](https://github.com/Tencent/WeKnora/issues/2295)。
+
+2026-10-08 已完成两个分支中断任务：重建故障索引后，748 条嵌入数据数量与内容一致，
+三个真实混合检索请求通过；默认模板和企微绑定智能体的独立身份描述均已更新。
+保留“智导小助手”的自定义称呼、业务提示、模型及知识库范围。临时验收会话已删除。
+此次未修改成员权限或恢复此前撤销的错误提示工作，未推送 GitHub。
 
 扩展目前复用服务器已有 edu-rag-platform-api 的 Python 运行镜像，但只启动新的 edu_bridge.main，不连接旧数据库、不导入旧模型。新服务器可另用 Python 3.12 + FastAPI/httpx/cryptography/uvicorn 构建轻量镜像。现有运行镜像不要误删。
 

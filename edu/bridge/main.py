@@ -9,11 +9,14 @@ import os
 
 from cryptography.fernet import Fernet
 from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
-from .store import Store
+from .store import Store, ScriptGroupError
 from . import dingtalk
+from .accounts import AccountError, MemberAccounts
 
 BASE = os.environ.get("WEKNORA_API_URL", "http://app:8080").rstrip("/")
 KEY = os.environ.get("EDU_ENCRYPTION_KEY", "")
@@ -188,7 +191,16 @@ class ImportContent(Content):
     legacy_id: str = Field(min_length=1, max_length=80)
 
 
-class RuleContent(Content):
+class ScriptContent(Content):
+    group_id: str | None = Field(default=None, min_length=1, max_length=80)
+
+
+class ScriptGroupContent(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    name: str = Field(min_length=1, max_length=120)
+
+
+class RuleContent(ScriptContent):
     push: bool = True
 
 
@@ -223,8 +235,39 @@ def scripts(q: str = Query(default="", max_length=200), current: Actor = Depends
 
 
 @app.post("/api/v1/edu/scripts")
-def create_script(payload: Content, current: Actor = Depends(actor)):
-    return success(store.save_script(current.id, payload.model_dump()))
+def create_script(payload: ScriptContent, current: Actor = Depends(actor)):
+    try:
+        return success(store.save_script(current.id, payload.model_dump(exclude_unset=True)))
+    except ScriptGroupError as error:
+        raise HTTPException(error.status, str(error)) from None
+
+
+@app.get("/api/v1/edu/script-groups")
+def script_groups(current: Actor = Depends(actor)):
+    return success(store.script_groups(current.id))
+
+
+@app.post("/api/v1/edu/script-groups")
+def create_script_group(payload: ScriptGroupContent, current: Actor = Depends(actor)):
+    try:
+        return success(store.save_script_group(current.id, payload.name))
+    except ScriptGroupError as error:
+        raise HTTPException(error.status, str(error)) from None
+
+
+@app.put("/api/v1/edu/script-groups/{group_id}")
+def rename_script_group(group_id: str, payload: ScriptGroupContent, current: Actor = Depends(actor)):
+    try:
+        return success(store.save_script_group(current.id, payload.name, group_id))
+    except ScriptGroupError as error:
+        raise HTTPException(error.status, str(error)) from None
+
+
+@app.delete("/api/v1/edu/script-groups/{group_id}")
+def delete_script_group(group_id: str, current: Actor = Depends(actor)):
+    if not store.delete_script_group(current.id, group_id):
+        raise HTTPException(404, "话术组不存在")
+    return success({"deleted": True})
 
 
 @app.post("/api/v1/edu/scripts/import")
@@ -241,8 +284,11 @@ def get_script(item_id: str, current: Actor = Depends(actor)):
 
 
 @app.put("/api/v1/edu/scripts/{item_id}")
-def edit_script(item_id: str, payload: Content, current: Actor = Depends(actor)):
-    result = store.save_script(current.id, payload.model_dump(), item_id)
+def edit_script(item_id: str, payload: ScriptContent, current: Actor = Depends(actor)):
+    try:
+        result = store.save_script(current.id, payload.model_dump(exclude_unset=True), item_id)
+    except ScriptGroupError as error:
+        raise HTTPException(error.status, str(error)) from None
     if not result:
         raise HTTPException(404, "话术不存在")
     return success(result)
@@ -260,10 +306,40 @@ def rules(q: str = Query(default="", max_length=200), current: Actor = Depends(a
     return success(store.rules(q))
 
 
+@app.get("/api/v1/edu/rule-groups")
+def rule_groups(current: Actor = Depends(actor)):
+    return success(store.rule_groups())
+
+
+@app.post("/api/v1/edu/rule-groups")
+def create_rule_group(payload: ScriptGroupContent, current: Actor = Depends(manager)):
+    try:
+        return success(store.save_rule_group(payload.name))
+    except ScriptGroupError as error:
+        raise HTTPException(error.status, str(error)) from None
+
+
+@app.put("/api/v1/edu/rule-groups/{group_id}")
+def rename_rule_group(group_id: str, payload: ScriptGroupContent, current: Actor = Depends(manager)):
+    try:
+        return success(store.save_rule_group(payload.name, group_id))
+    except ScriptGroupError as error:
+        raise HTTPException(error.status, str(error)) from None
+
+
+@app.delete("/api/v1/edu/rule-groups/{group_id}")
+def delete_rule_group(group_id: str, current: Actor = Depends(manager)):
+    if not store.delete_rule_group(group_id):
+        raise HTTPException(404, "规则分组不存在")
+    return success({"deleted": True})
+
+
 @app.post("/api/v1/edu/rules")
 def create_rule(payload: RuleContent, current: Actor = Depends(manager)):
-    values = payload.model_dump()
-    return success(store.save_rule(current.username, values, push=payload.push))
+    try:
+        return success(store.save_rule(current.username, payload.model_dump(exclude_unset=True), push=payload.push))
+    except ScriptGroupError as error:
+        raise HTTPException(error.status, str(error)) from None
 
 
 @app.post("/api/v1/edu/rules/import")
@@ -274,7 +350,10 @@ def import_rule(payload: ImportContent, current: Actor = Depends(manager)):
 
 @app.put("/api/v1/edu/rules/{item_id}")
 def edit_rule(item_id: str, payload: RuleContent, current: Actor = Depends(manager)):
-    result = store.save_rule(current.username, payload.model_dump(), item_id, payload.push)
+    try:
+        result = store.save_rule(current.username, payload.model_dump(exclude_unset=True), item_id, payload.push)
+    except ScriptGroupError as error:
+        raise HTTPException(error.status, str(error)) from None
     if not result:
         raise HTTPException(404, "规则不存在")
     return success(result)
@@ -329,3 +408,39 @@ def save_robot(payload: RobotConfig, current: Actor = Depends(manager)):
         raise HTTPException(422, "启用前请配置 Webhook")
     store.save_settings(cipher, {"dingtalk": config})
     return get_robot(current)
+
+
+class MemberContent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    username: str = Field(min_length=2, max_length=50)
+    email: str = Field(min_length=3, max_length=255)
+    password: str | None = Field(default=None, max_length=32)
+
+
+member_accounts = MemberAccounts()
+member_slots = asyncio.Semaphore(1)
+
+
+@app.post("/api/v1/edu/tenants/{tenant_id}/members/create")
+async def create_member(tenant_id: int, payload: MemberContent, current: Actor = Depends(actor)):
+    # Native JWT validation precedes authoritative per-workspace role checks in
+    # MemberAccounts. A platform rules-manager flag is NOT sufficient here.
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
+            config = await client.get(BASE + "/api/v1/auth/config")
+        if config.status_code != 200 or config.json().get("success") is not True:
+            raise HTTPException(503, "密码策略暂不可用，请稍后重试")
+        complex_enabled = config.json().get("complex_password_enabled")
+        if not isinstance(complex_enabled, bool):
+            raise HTTPException(503, "密码策略暂不可用，请稍后重试")
+        async with member_slots:
+            result = await run_in_threadpool(member_accounts.create, current.id, tenant_id,
+                                            payload.username, payload.email, payload.password, complex_enabled)
+        return JSONResponse(result, status_code=201 if result["created"] else 200,
+                            headers={"Cache-Control": "no-store"})
+    except AccountError as error:
+        raise HTTPException(error.status, error.message) from None
+    except (httpx.HTTPError, ValueError):
+        raise HTTPException(503, "成员创建服务暂不可用，请稍后重试") from None
+    except Exception:
+        raise HTTPException(503, "成员创建暂未成功，请稍后重试") from None

@@ -1,4 +1,5 @@
 import { get, post, put, del, postUpload, getDown } from "../../utils/request";
+import { withAutomaticUploadSummary } from '@/utils/automaticUploadSummary';
 import type { KnowledgeProcessOverrides } from '@/types/knowledgeProcess';
 import type { AuditLog, AuditOutcome, ListAuditLogResponse } from '@/api/tenant/audit-log';
 import { buildListKnowledgeFilesQuery } from './knowledgeFileListQuery';
@@ -264,8 +265,9 @@ export function uploadKnowledgeFile(
   config?: { signal?: AbortSignal },
 ) {
   const formData = new FormData();
-  Object.keys(data).forEach(key => {
-    const value = data[key];
+  const uploadData: Record<string, any> = { ...data, process_config: withAutomaticUploadSummary(data.process_config) };
+  Object.keys(uploadData).forEach(key => {
+    const value = uploadData[key];
     if (value === undefined) return;
     if (key === 'tag_ids' && Array.isArray(value)) {
       formData.append(key, value.join(','));

@@ -4010,4 +4010,6 @@ const handleAddToKnowledge = (answerEvent: any) => {
 }
 </style>
 
-<style lang="less" src="@/components/css/wiki-graph-drawer.less"></style>
+<style lang="less">
+@import '@/components/css/wiki-graph-drawer.less';
+</style>

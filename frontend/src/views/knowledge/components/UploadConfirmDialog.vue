@@ -490,10 +490,10 @@
                         <div class="setting-row">
                           <div class="setting-info">
                             <label>{{ t('uploadConfirm.generateSummary') }}</label>
-                            <p class="desc">{{ t('uploadConfirm.generateSummaryHint') }}</p>
+                            <p class="desc">文件解析完成后自动生成摘要，无需手动点击；任务在后台执行。</p>
                           </div>
                           <div class="setting-control">
-                            <t-switch v-model="uiState.summaryEnabled" size="medium" />
+                            <t-switch :model-value="true" disabled size="medium" aria-label="上传后自动生成摘要，已启用" />
                           </div>
                         </div>
                       </div>
@@ -1170,7 +1170,7 @@ function buildProcessOverrides(): KnowledgeProcessOverrides {
   const chunking = state.chunkingConfig
 
   const overrides: KnowledgeProcessOverrides = {
-    summary_enabled: state.summaryEnabled,
+    summary_enabled: true,
     parser_engine_rules: chunking.parserEngineRules,
     chunking_config: {
       chunk_size: chunking.chunkSize,
@@ -1224,7 +1224,8 @@ function buildProcessOverrides(): KnowledgeProcessOverrides {
 function applyOverridesToState(o?: KnowledgeProcessOverrides | null) {
   if (!o) return
   const s = uiState.value
-  if (o.summary_enabled != null) s.summaryEnabled = o.summary_enabled
+  // Old saved templates must not turn automatic upload summaries off again.
+  s.summaryEnabled = true
   const cc = o.chunking_config
   if (cc) {
     if (cc.chunk_size != null) s.chunkingConfig.chunkSize = cc.chunk_size

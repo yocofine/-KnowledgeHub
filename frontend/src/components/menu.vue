@@ -3,7 +3,8 @@
         <!-- 展开时：Logo + 搜索/折叠按钮同行 -->
         <div class="logo_row" v-if="!uiStore.sidebarCollapsed">
             <div class="logo_box" @click="router.push('/platform/knowledge-bases')" style="cursor: pointer;">
-                <img class="logo" src="@/assets/img/weknora.png" alt="">
+                <img class="kh-logo-mark" src="/brand/classbro-mark.webp" alt="" width="46" height="54">
+                <span class="kh-logo-name">智导<span>KnowledgeHub</span></span>
                 <sup v-if="isLiteEdition" class="lite-badge">Lite</sup>
             </div>
             <div class="logo_actions">
@@ -83,6 +84,8 @@
                 <t-tooltip :content="item.title" placement="right" :disabled="!uiStore.sidebarCollapsed">
                     <div @click="handleMenuClick(item.path)" @mouseenter="mouseenteMenu(item.path)"
                         @mouseleave="mouseleaveMenu(item.path)" :data-guide="`nav-${item.path}`"
+                        role="link" tabindex="0" @keydown.enter.prevent="handleMenuClick(item.path)"
+                        :aria-current="isMenuItemActive(item.path) ? 'page' : undefined"
                         :class="['menu_item', item.childrenPath && item.childrenPath == currentpath ? 'menu_item_c_active' : isMenuItemActive(item.path) ? 'menu_item_active' : '']">
                         <div class="menu_item-box">
                             <div class="menu_icon">
@@ -322,6 +325,23 @@ const toolboxPreview = computed(() => TOOLBOX_ITEMS.filter((item) => canAccessTo
 })));
 const orgStore = useOrganizationStore();
 const uiStore = useUIStore();
+let narrowSidebar: MediaQueryList | undefined;
+let autoCollapsedSidebar = false;
+function syncNarrowSidebar() {
+    if (narrowSidebar?.matches && !uiStore.sidebarCollapsed) {
+        uiStore.sidebarCollapsed = true;
+        autoCollapsedSidebar = true;
+    } else if (!narrowSidebar?.matches && autoCollapsedSidebar) {
+        uiStore.sidebarCollapsed = false;
+        autoCollapsedSidebar = false;
+    }
+}
+onMounted(() => {
+    narrowSidebar = window.matchMedia('(max-width: 640px)');
+    syncNarrowSidebar();
+    narrowSidebar.addEventListener('change', syncNarrowSidebar);
+});
+onUnmounted(() => narrowSidebar?.removeEventListener('change', syncNarrowSidebar));
 const browserConnection = useBrowserConnectionStore();
 const browserStackStatus = computed(() => {
     if (!uiStore.sidebarBrowserStatus) return '';
@@ -440,6 +460,14 @@ const isMenuItemActive = (itemPath: string): boolean => {
     const currentRoute = route.name;
 
     switch (itemPath) {
+        case 'edu-scripts':
+            return currentRoute === 'eduScripts';
+        case 'edu-rules':
+            return currentRoute === 'eduRules';
+        case 'edu-faq':
+            return currentRoute === 'eduFAQ';
+        case 'edu-analysis':
+            return currentRoute === 'eduAnalysis';
         case 'knowledge-bases':
             return currentRoute === 'knowledgeBaseList' ||
                 currentRoute === 'knowledgeBaseDetail' ||
@@ -1157,6 +1185,7 @@ const getIcon = (path: string) => {
 }
 getIcon(typeof route.name === 'string' ? route.name as string : (route.name ? String(route.name) : ''))
 const handleMenuClick = async (path: string) => {
+    if (narrowSidebar?.matches) uiStore.sidebarCollapsed = true;
     if (path === 'knowledge-bases') {
         // 知识库菜单项：如果在知识库内部，跳转到当前知识库文件页；否则跳转到知识库列表
         const kbId = await getCurrentKbId()
@@ -1467,6 +1496,12 @@ const resizeSidebar = (delta: number, keyboard: boolean) => {
         margin-bottom: 1px;
         border-radius: var(--app-radius-xs);
         transition: background-color var(--app-motion-base) ease;
+
+        &:focus { outline: none; }
+        &:focus-visible {
+            outline: 2px solid var(--td-brand-color);
+            outline-offset: -2px;
+        }
 
         .menu_item-box {
             display: flex;
@@ -1790,6 +1825,9 @@ const resizeSidebar = (delta: number, keyboard: boolean) => {
     gap: 4px;
     flex-shrink: 0;
 }
+.kh-logo-mark { width: 32px; height: 32px; flex-shrink: 0; margin-right: 8px; }
+.kh-logo-name { font-size: 17px; font-weight: 700; line-height: 1.2; color: var(--td-text-color-primary); }
+.kh-logo-name span { display: block; font-size: 12px; font-weight: 500; margin-top: 3px; }
 
 .header-icon-btn {
     display: flex;

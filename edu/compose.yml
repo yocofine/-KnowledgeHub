@@ -76,6 +76,7 @@ services:
       - data-files:/data/files
       - docreader-tmp:/tmp/docreader:ro
       - ../config/config.yaml:/app/config/config.yaml:ro
+      - ../config/prompt_templates:/app/config/prompt_templates:ro
     depends_on:
       postgres:
         condition: service_healthy

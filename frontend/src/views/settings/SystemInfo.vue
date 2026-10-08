@@ -138,21 +138,7 @@
           <template #default>
             <p class="migration-error-desc">{{ $t('system.dbMigrationFailedDesc') }}</p>
             <pre class="migration-error-detail">{{ systemInfo.db_migration_error }}</pre>
-            <div class="migration-error-actions">
-              <t-link
-                theme="primary"
-                :href="troubleshootingDocsURL"
-                target="_blank"
-                rel="noopener noreferrer"
-              >{{ $t('system.dbMigrationViewDocs') }}</t-link>
-              <span class="migration-error-actions-sep">·</span>
-              <t-link
-                theme="primary"
-                :href="reportIssueURL"
-                target="_blank"
-                rel="noopener noreferrer"
-              >{{ $t('system.dbMigrationReportIssue') }}</t-link>
-            </div>
+
           </template>
         </t-alert>
       </div>
@@ -262,7 +248,7 @@ const reportIssueURL = computed(() => {
   if (errMsg) {
     const body = [
       '### Environment',
-      `- WeKnora version: ${systemInfo.value?.version || 'unknown'}`,
+      `- KnowledgeHub version: ${systemInfo.value?.version || 'unknown'}`,
       `- Commit: ${systemInfo.value?.commit_id || 'unknown'}`,
       `- Frontend version: ${frontendVersion} (${frontendCommit})`,
       `- DB version reported: ${systemInfo.value?.db_version || 'unknown'}`,

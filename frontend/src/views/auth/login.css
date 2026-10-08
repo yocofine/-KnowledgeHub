@@ -1,0 +1,136 @@
+/* Hallmark · macrostructure: Split Studio · genre: modern-minimal · theme: existing green
+ * scope: login only · nav: N9 (brand only, user removed links) · footer: Ft2
+ * enrichment: none · audience: edu team · action: sign in · tone: restrained
+ * pre-emit critique: P4 H4 E4 S4 R5 V4; contrast: WCAG AA checked
+ */
+.kh-login {
+  --td-brand-color: var(--kh-color-accent);
+  --td-brand-color-hover: var(--kh-color-accent-hover);
+  --td-brand-color-active: var(--kh-color-accent-hover);
+  --td-brand-color-light: var(--kh-color-soft);
+  --td-text-color-primary: var(--kh-color-ink);
+  --td-text-color-secondary: var(--kh-color-muted);
+  --td-text-color-placeholder: var(--kh-color-muted);
+  --td-text-color-anti: var(--kh-color-accent-ink);
+  --td-bg-color-container: var(--kh-color-surface);
+  --td-bg-color-container-hover: var(--kh-color-soft);
+  --td-error-color: var(--kh-color-error);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100dvh;
+  overflow-x: clip;
+  display: flex;
+  flex-direction: column;
+  padding: var(--kh-space-lg);
+  background: var(--kh-color-paper);
+  color: var(--kh-color-ink);
+  font-family: var(--kh-font-body);
+  font-size: var(--kh-text-base);
+  line-height: 1.6;
+}
+:global(html:has(.kh-login)), :global(body:has(.kh-login)) { overflow-x: clip; }
+.kh-header, .kh-layout, .kh-footer { width: 100%; max-width: 1200px; margin-inline: auto; box-sizing: border-box; }
+.kh-brand { display: flex; align-items: center; gap: var(--kh-space-sm); font-weight: 700; font-size: 22px; }
+.kh-brand img { flex-shrink: 0; }
+.kh-brand-en { display: block; font-size: var(--kh-text-sm); font-weight: 500; letter-spacing: 0; line-height: 1.4; }
+.kh-layout { display: grid; grid-template-columns: minmax(0,1fr); gap: var(--kh-space-xl); flex: 1; padding-block: var(--kh-space-xl); align-items: center; }
+.kh-intro { min-width: 0; order: 2; }
+.kh-intro-copy { display: none; }
+.kh-intro h1 { font-family: var(--kh-font-display); font-style: normal; font-weight: 700; font-size: var(--kh-text-display); line-height: 1.35; margin: 0; overflow-wrap: anywhere; min-width: 0; }
+.kh-lede { color: var(--kh-color-muted); max-width: 40ch; margin: var(--kh-space-lg) 0 0; }
+.kh-capabilities { display: none; margin: 0; }
+.kh-capabilities div { padding-block: var(--kh-space-md); border-bottom: 1px solid var(--kh-color-rule); }
+.kh-capabilities dt { font-weight: 600; margin-bottom: var(--kh-space-xs); }
+.kh-capabilities dd { margin: 0; color: var(--kh-color-muted); font-size: var(--kh-text-sm); }
+.kh-intro-note { display: none; }
+.form-section { min-width: 0; width: 100%; order: 1; }
+.form-panel { width: 100%; max-width: 440px; margin-inline: auto; }
+.form-card { box-sizing: border-box; padding: var(--kh-space-lg); background: var(--kh-color-surface); border: 1px solid var(--kh-color-rule); border-radius: var(--kh-radius); }
+.form-header { margin-bottom: var(--kh-space-lg); }
+.form-title { font-size: var(--kh-text-title); line-height: 1.4; margin: 0 0 var(--kh-space-xs); font-weight: 700; }
+.form-welcome, .form-subtitle { margin: 0; color: var(--kh-color-muted); font-size: var(--kh-text-sm); }
+.form-hint { font-size: var(--kh-text-sm); color: var(--kh-color-muted); margin: var(--kh-space-sm) 0 0; }
+.form-content :deep(.t-form-item) { margin-bottom: var(--kh-space-lg); }
+.form-content :deep(.t-form-item__label) { font-size: var(--kh-text-sm); color: var(--kh-color-ink); font-weight: 500; }
+.form-content :deep(.t-input) { min-height: 48px; border: 1px solid var(--kh-color-input-rule); border-radius: var(--kh-radius); background: var(--kh-color-surface); box-shadow: none; transition: none; }
+.form-content :deep(.t-input__inner) { font-family: var(--kh-font-body); font-size: var(--kh-text-base); color: var(--kh-color-ink); }
+.form-content :deep(.t-input:focus-within) { outline: 2px solid var(--kh-color-focus); outline-offset: 2px; }
+.form-content :deep(.t-input--error) { border-color: var(--kh-color-error); }
+.form-content :deep(.t-input--disabled) { opacity: 0.6; cursor: not-allowed; background: var(--kh-color-soft); }
+.form-content :deep(.t-input__suffix) { min-width: 24px; }
+.form-content :deep(.t-input__suffix-icon) { min-width: 32px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+.form-content :deep(.t-form__controls) { min-width: 0; }
+.form-content :deep(.t-input__extra), .form-content :deep(.t-form__controls-message) { color: var(--kh-color-error); }
+.submit-button, .oidc-button, .register-cta__button { min-height: 48px; height: auto; padding-block: var(--kh-space-sm); border-radius: var(--kh-radius); font-size: var(--kh-text-base); white-space: nowrap; max-width: 100%; }
+.submit-button { margin-block: var(--kh-space-xs) var(--kh-space-md); background: var(--kh-color-accent); color: var(--kh-color-accent-ink); border-color: var(--kh-color-accent); transition: transform var(--kh-dur-micro) var(--kh-ease-out); }
+.submit-button:active:not(:disabled) { transform: translateY(1px); }
+.form-content :deep(.t-button:focus-visible), .link-button:focus-visible { outline: 2px solid var(--kh-color-focus); outline-offset: 3px; }
+.form-content :deep(.t-button--disabled) { opacity: 0.55; cursor: not-allowed; }
+.register-cta__divider, .oidc-divider { text-align: center; color: var(--kh-color-muted); font-size: var(--kh-text-sm); margin-block: var(--kh-space-sm); }
+.oidc-button, .register-cta__button { background: var(--kh-color-surface); color: var(--kh-color-accent); border-color: var(--kh-color-accent); }
+.form-footer { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--kh-space-xs); margin-top: var(--kh-space-md); font-size: var(--kh-text-sm); color: var(--kh-color-muted); }
+.link-button { color: var(--kh-color-accent); white-space: nowrap; min-height: 44px; display: inline-flex; align-items: center; }
+.invite-banner { display: flex; gap: var(--kh-space-sm); padding: var(--kh-space-sm); margin-bottom: var(--kh-space-lg); background: var(--kh-color-soft); border-radius: var(--kh-radius); font-size: var(--kh-text-sm); }
+.invite-banner__icon { flex-shrink: 0; }
+.invite-banner__title { font-weight: 600; }
+.invite-banner__hint { color: var(--kh-color-muted); }
+.invite-banner--error { color: var(--kh-color-error); }
+.kh-footer { color: var(--kh-color-muted); font-size: var(--kh-text-sm); border-top: 1px solid var(--kh-color-rule); padding-block: var(--kh-space-md); }
+@media (hover: hover) {
+  .form-content :deep(.t-input:not(.t-input--disabled):hover) { background: var(--kh-color-soft); }
+  .submit-button:hover:not(:disabled) { background: var(--kh-color-accent-hover); border-color: var(--kh-color-accent-hover); color: var(--kh-color-accent-ink); }
+  .link-button:hover { text-decoration: underline; }
+}
+@media (min-width: 60rem) {
+  .kh-login { padding: var(--kh-space-xl) var(--kh-space-2xl) var(--kh-space-lg); }
+  .kh-layout { grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: var(--kh-space-2xl); padding-block: var(--kh-space-2xl); }
+  .kh-intro { order: 1; }
+  .form-section { order: 2; }
+  .kh-intro-copy, .kh-capabilities, .kh-intro-note { display: block; }
+  .kh-capabilities { margin-top: var(--kh-space-xl); max-width: 420px; }
+  .kh-intro-note { margin: var(--kh-space-lg) 0 0; color: var(--kh-color-muted); font-size: var(--kh-text-sm); }
+  .form-card { padding: var(--kh-space-xl); }
+}
+@media (prefers-reduced-motion: reduce) { .submit-button { transition: none; } .submit-button:active:not(:disabled) { transform: none; } }
+
+/* Reference photo / glass login variant. Native login, invitations and OIDC stay unchanged. */
+.kh-login {
+  --kh-color-ink: oklch(23% 0.015 25);
+  --kh-color-muted: oklch(42% 0.015 25);
+  --kh-color-surface: oklch(99% 0.003 25);
+  --kh-color-accent: oklch(57% 0.22 25);
+  --kh-color-accent-hover: oklch(51% 0.21 25);
+  --kh-color-accent-ink: oklch(99.8% 0.001 25);
+  --kh-color-input-rule: oklch(90% 0.008 25);
+  --kh-color-paper: oklch(28% 0.06 25);
+  --kh-color-rule: oklch(90% 0.008 25);
+  --kh-color-focus: oklch(39% 0.15 25);
+  background: linear-gradient(90deg, color-mix(in srgb,var(--kh-color-paper) 22%,transparent), transparent), url('/brand/study-room.webp') center / cover no-repeat;
+}
+.kh-header, .kh-layout, .kh-footer { max-width: 1280px; }
+.kh-header { color: var(--kh-color-accent-ink); }
+.kh-brand { font-size: 26px; }
+.kh-brand img { filter: brightness(0) invert(1); width: 64px; height: 72px; object-fit: contain; }
+.kh-brand-en { font-size: 18px; }
+.kh-intro-copy, .kh-intro h1, .kh-lede, .kh-capabilities, .kh-capabilities dd, .kh-intro-note, .kh-footer { color: var(--kh-color-accent-ink); }
+.kh-capabilities { max-width: 490px; }
+.kh-capabilities div { position: relative; padding: 16px 0 16px 82px; border-color: color-mix(in srgb,var(--kh-color-accent-ink) 20%,transparent); }
+.kh-capabilities div > .t-icon { position: absolute; inset: 16px auto auto 0; width: 56px; height: 56px; padding: 12px; box-sizing: border-box; font-size: 32px; border-radius: 14px; background: color-mix(in srgb,var(--kh-color-accent-ink) 12%,transparent); }
+.kh-capabilities dt { font-size: 20px; margin-bottom: 4px; }
+.kh-capabilities dd { font-size: 15px; }
+.form-panel { max-width: 490px; }
+.form-card { padding: 36px; border: 1px solid color-mix(in srgb,var(--kh-color-accent-ink) 85%,transparent); border-radius: 22px; background: color-mix(in srgb,var(--kh-color-surface) 78%,transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.form-title { font-size: 32px; }
+.form-welcome, .form-subtitle { font-size: 16px; }
+.form-content :deep(.t-input) { min-height: 52px; background: color-mix(in srgb,var(--kh-color-surface) 80%,transparent); border-radius: 11px; }
+.submit-button { min-height: 52px; border-radius: 11px; font-size: 18px; }
+.kh-login .form-content .submit-button.t-button--theme-primary { color: var(--kh-color-accent-ink); }
+.kh-footer { border-color: color-mix(in srgb,var(--kh-color-accent-ink) 30%,transparent); }
+@media (min-width:60rem) {
+  .kh-login { padding-top: 52px; }
+  .kh-layout { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); gap: 100px; padding-block: 28px 48px; }
+  .kh-intro h1 { font-size: 52px; }
+  .kh-lede { font-size: 19px; }
+  .form-card { padding: 56px; }
+}
+@supports not (backdrop-filter: blur(1px)) { .form-card { background: var(--kh-color-surface); } }

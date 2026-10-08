@@ -11,9 +11,7 @@
       >
         <template #message>
           <div>{{ t('graphSettings.disabledWarning') }}</div>
-          <t-link class="graph-guide-link" theme="primary" @click="handleOpenGraphGuide">
-            {{ t('graphSettings.howToEnable') }}
-          </t-link>
+          
         </template>
       </t-alert>
     </div>
